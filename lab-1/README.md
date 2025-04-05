@@ -3,8 +3,8 @@ layout: default
 title: Lab 1 Foundation + GitLab CI/CD Bootstrapping + VPC Import
 nav_order: 10
 has_children: true
-parent: AWS CDK with TypeScript & GitLab CI/CD Workshop
 ---
+
 # Lab 1: Foundation + GitLab CI/CD Bootstrapping + VPC Import
 
 ## Time Allocation
