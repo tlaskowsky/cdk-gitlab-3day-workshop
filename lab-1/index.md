@@ -1,3 +1,6 @@
+---
+layout: default
+---
 # Lab 1: Foundation & CI/CD Bootstrapping
 
 ## Goal
