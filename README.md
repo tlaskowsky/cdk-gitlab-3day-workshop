@@ -1,3 +1,10 @@
+---
+layout: default
+title: AWS CDK with TypeScript & GitLab CI/CD Workshop
+nav_order: 0
+has_children: true
+---
+
 # AWS CDK with TypeScript & GitLab CI/CD Workshop
 
 Welcome to this intensive 3-day hands-on workshop focused on building a document processing pipeline using AWS CDK with TypeScript and GitLab CI/CD pipelines.
