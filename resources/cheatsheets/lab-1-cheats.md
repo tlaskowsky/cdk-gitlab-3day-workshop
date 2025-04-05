@@ -1,3 +1,73 @@
+---
+layout: default
+title: Lab 1 Cheatsheet
+parent: Cheatsheets
+grand_parent: Resources
+nav_order: 1
+---
+
+# Lab 1: Foundation & CI/CD Bootstrapping Cheatsheet
+
+## Key Commands
+
+### Project Setup
+```bash
+# Initialize CDK TypeScript project
+cdk init app --language typescript
+
+# Install dependencies
+npm install aws-cdk-lib constructs
+```
+
+### CDK Commands
+```bash
+# Build TypeScript code
+cdk init
+
+# Synthesize CloudFormation template
+cdk synth
+
+# Bootstrap CDK environment
+cdk bootstrap aws://ACCOUNT-NUMBER/REGION
+
+# Deploy stacks
+cdk deploy --all
+```
+
+### Git Commands
+```bash
+# Check status
+git status
+
+# Add all files
+git add .
+
+# Commit changes
+git commit -m "Lab 1: Implement Core/Compute stacks and basic CI/CD"
+
+# Push to GitLab
+git push origin main
+```
+
+## Key Concepts
+
+- **CDK App**: Entry point for CDK application
+- **Stacks**: Deployable units containing resources
+- **Constructs**: Building blocks for AWS resources
+- **VPC Lookup**: Importing existing VPC using `Vpc.fromLookup()`
+- **Cross-Stack References**: Passing resources as props between stacks
+- **Aspects**: Applying modifications/validations across resources
+- **GitLab CI/CD**: Pipeline stages, jobs, and runners
+
+## Important Files
+
+- `bin/doc-pipeline-lab.ts`: Main app entry point
+- `lib/core-stack.ts`: S3 bucket and SQS queue
+- `lib/compute-stack.ts`: EC2 instance configuration
+- `lib/tagging-aspect.ts`: Resource tagging implementation
+- `.gitlab-ci.yml`: CI/CD pipeline definition
+
+
 # Lab 1 Troubleshooting Summary & Tips
 
 This summarizes the issues encountered and solutions applied while setting up the initial Lab 1 CDK application and GitLab CI/CD pipeline. The final working state uses the code from `lab1_instructions_v5_final` and the associated CI/CD YAML within it (conceptually matching the structure of `gitlab_ci_v15_conventional_order` which used multi-line scripts for main jobs).
