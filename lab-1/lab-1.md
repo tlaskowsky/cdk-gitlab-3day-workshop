@@ -160,7 +160,6 @@
       }
     }
     ```
-    *(Self-correction: Explicitly used `/usr/local/bin/aws` in polling script just in case path isn't set correctly early in boot.)*
 
 **Step 4: Instantiate and Connect Stacks in the App**
 
