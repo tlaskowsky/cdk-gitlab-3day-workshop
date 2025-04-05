@@ -41,7 +41,8 @@ In this lab, you will:
 - Familiarity with TypeScript
 
 ## Hands-on Lab Instructions
-[Lab 1: Foundation & CI/CD Bootstrapping](lab-1)]
+
+Try the lab! [Lab 1: Foundation & CI/CD Bootstrapping](./lab-1.md)]
 
 ## Next Steps
 
