@@ -1,6 +1,6 @@
 # AWS CDK with TypeScript & GitLab CI/CD Workshop
 
-Welcome to this intensive 3-day hands-on workshop focused on building a complete document processing pipeline using AWS CDK with TypeScript and GitLab CI/CD pipelines.
+Welcome to this intensive 3-day hands-on workshop focused on building a document processing pipeline using AWS CDK with TypeScript and GitLab CI/CD pipelines.
 
 ## Course Overview
 
@@ -38,53 +38,59 @@ Each lab will build incrementally on previous work, with each lab taking approxi
 ### Day 1: Foundation & CI/CD Basics
 
 - [Lab 1: Foundation + GitLab CI/CD Bootstrapping + VPC Import](./lab-1/README.md)
-  - Setting up the CDK project structure
-  - Bootstrapping AWS environments
-  - Implementing GitLab CI/CD pipelines
-  - Importing existing VPC resources
+  - CDK Fundamentals: App, Stacks, Constructs (L1/L2/L3)
+  - TypeScript in CDK: Props Interfaces for Type Safety
+  - AWS Core Services: S3, SQS, EC2, VPC
+  - Importing Existing AWS Infrastructure: Vpc.fromLookup()
+  - Basic CI/CD: GitLab CI/CD Basics (.gitlab-ci.yml, Stages, Jobs, Runners)
+  - Simple Automation: Intro to CDK Aspects for Tagging
 
 - [Lab 2: Cross-Account CI/CD + Resource Prefixing](./lab-2/README.md)
-  - Implementing cross-account deployment patterns
-  - Setting up secure resource naming conventions
-  - Configuring environment-specific parameters
-  - Managing deployment permissions
+  - GitLab CI/CD Pipelines: Cross-Account Deployment Strategy
+  - GitLab CI/CD Features: Manual Approvals/Gates, Environments
+  - IAM for Cross-Account Access (CDKDeployRole concept)
+  - CDK Context for passing configuration/parameters
+  - Resource Naming Strategies & Importance
 
 ### Day 2: Core Pipeline Logic & Custom Resources
 
 - [Lab 3: AI (Comprehend) + DynamoDB + Custom Resource Seeding](./lab-3/README.md)
-  - Setting up DynamoDB tables for document metadata
-  - Integrating AWS Comprehend for text analysis
-  - Creating custom resources for initial data seeding
-  - Implementing event-driven processing
+  - Amazon DynamoDB: Core Concepts (Tables, Items, Keys - PK/SK, Capacity Modes)
+  - IAM Permissions: Granting EC2 access to DynamoDB
+  - Amazon Comprehend: Basic NLP Capabilities (Sentiment, Key Phrases)
+  - CDK Custom Resources: Lambda-backed Custom Resources, Provider Framework
 
 - [Lab 4: Event Pipeline Complete (Textract + Real File Ingestion)](./lab-4/README.md)
-  - Creating S3 buckets for document uploads
-  - Configuring SQS queues for processing tasks
-  - Implementing Textract integration for document processing
-  - Building complete event processing flows
+  - Amazon Textract: Capabilities (Sync/Async OCR, Forms, Tables)
+  - Integrating Multiple AI Service Results
+  - CloudWatch Logs: Basic logging from EC2
+  - IAM Permissions: Granting EC2 access to Textract
+  - End-to-End Event Processing: S3 → SQS → EC2 → DynamoDB pipeline
 
 ### Day 3: Testing, Refactoring & Exposure
 
 - [Lab 5: Automated Tests + Infrastructure Compliance](./lab-5/README.md)
-  - Writing unit tests for CDK constructs
-  - Implementing snapshot testing
-  - Adding CDK Aspects for compliance checks
-  - Setting up test automation in CI/CD
+  - Testing IaC: Unit Testing, Snapshot Testing, Integration Testing concepts
+  - CDK assertions Module: Template.fromStack(), hasResourceProperties()
+  - Snapshot Testing with Jest (toMatchSnapshot())
+  - CI/CD Test Stages: Integrating tests into the pipeline
+  - CDK Aspects for Policy/Compliance Enforcement
 
 - [Lab 6: Refactor to Fargate + Monitoring + CloudFront Static Site](./lab-6/README.md)
-  - Refactoring EC2 workloads to ECS Fargate
-  - Implementing CloudWatch alarms and SNS notifications
-  - Creating a static website with CloudFront distribution
-  - Finalizing the end-to-end solution
+  - Containers & Docker Basics: Dockerfile, Build, Tag, Push
+  - Amazon ECR & Amazon ECS/Fargate: Concepts and implementation
+  - CloudWatch Monitoring: Metrics, Alarms, Actions
+  - Amazon SNS: Topics for notifications
+  - S3 Static Website Hosting & Amazon CloudFront: CDN basics
 
 ## Workshop Materials
 
 Each lab contains:
-- README with step-by-step instructions
+- README with concept overview and lab objectives
+- Step-by-step instructions
 - Code samples to copy/paste
 - Architectural diagrams
 - Exercise solutions
-- Implementation tips and best practices
 
 ## Getting Help
 
