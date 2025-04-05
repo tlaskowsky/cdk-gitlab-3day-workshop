@@ -29,7 +29,7 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 
 2.  **Clone Locally:**
     * Navigate to your newly created project's main page in the GitLab UI.
-    * Click the blue **"Clone"** button (usually near the top right).
+    * Click the blue **"Code"** button (usually near the top right).
     * Copy the URL provided under **"Clone with HTTPS"**. It will look something like `https://gitlab.com/your-group/your-project.git`.
     * In your **local terminal**, use the copied URL with the `git clone` command. Then navigate into the newly created project directory. Replace `PASTE_HTTPS_URL_HERE` with the URL you copied.
         ```bash
