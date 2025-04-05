@@ -11,7 +11,7 @@ has_children: true
 Day 1 Morning (Approximately 2-3 hours)
 
 ## Incremental Objective
-Establish the basic CDK project structure, CI/CD to the Dev environment, and a minimal working event pipeline (S3 → SQS → EC2 placeholder) within an existing VPC.
+Establish the basic CDK project structure, CI/CD to the Dev environment, provision pipeline components (S3 bucket, SQS queue, EC2 placeholder polling SQS) within an existing VPC, and verify SQS->EC2 communication. 
 
 ## Key Concepts
 
