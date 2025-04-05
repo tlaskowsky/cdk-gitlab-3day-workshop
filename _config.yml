@@ -6,4 +6,4 @@ description: A 3-day workshop building a document processing pipeline
 color_scheme: light # or dark
 
 # Make all pages appear in navigation
-nav_sort: case_insensitive # default is case_sensitive
+# nav_sort: case_insensitive # default is case_sensitive
