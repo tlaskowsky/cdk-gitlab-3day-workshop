@@ -128,3 +128,12 @@ This summarizes the issues encountered and solutions applied while setting up th
 * **Problem:** `cdk deploy` succeeds, but EC2 instance runs old UserData script.
 * **Diagnosis:** CloudFormation didn't detect a change requiring instance replacement (UserData change alone might not be enough).
 * **Solution (for Debugging/Workshops):** Force replacement by changing the instance's logical ID in CDK code: `const instanceLogicalId = \`ProcessingInstance-${Date.now()}\`; const instance = new ec2.Instance(this, instanceLogicalId, { ... });`. Remove this dynamic ID once UserData is stable if desired.
+
+## 6. Why Use `npx cdk ...` in CI/CD?
+
+Using `npx` before CDK commands (`npx cdk synth`, `npx cdk deploy`, etc.) in your `.gitlab-ci.yml` is a recommended best practice:
+
+* **Uses Project Version:** It executes the specific `aws-cdk` toolkit version defined in your project's `package.json` / `package-lock.json` (installed locally into `node_modules` by `npm ci`).
+* **Ensures Consistency:** Guarantees that the same CDK version is used in CI/CD as in local development (if developers also use `npx`), leading to more reliable and reproducible builds/deployments.
+* **Avoids Global Dependency:** Doesn't require `aws-cdk` to be installed globally (`npm install -g`) on the runner, preventing issues caused by runners having different global CDK versions.
+* **Standard Workflow:** `npm ci` followed by `npx ...` is the standard way to run package binaries in CI/CD for Node.js projects.
