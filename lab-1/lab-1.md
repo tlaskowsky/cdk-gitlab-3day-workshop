@@ -156,17 +156,17 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 
         // Define the script content using a template literal.
         // Ensure the echo command has its argument double-quoted.
+        
         const pollingScript = `#!/bin/bash
-    # --- Ensure this line has quotes around the echoed string ---
-    echo "Polling SQS Queue: ${props.processingQueue.queueUrl} (Region determined automatically by AWS CLI)"
-    while true; do
-      # Use full path for aws cli
-      /usr/local/bin/aws sqs receive-message --queue-url ${props.processingQueue.queueUrl} --wait-time-seconds 10 --max-number-of-messages 1 | \\
-      # Parse with jq and append to log
-      jq -r '.Messages[] | ("Received message ID: " + .MessageId + " Body: " + .Body)' >> /home/ec2-user/sqs_messages.log
-      # Pause between polls
-      sleep 5
-    done`;
+        echo "Polling SQS Queue: ${props.processingQueue.queueUrl} (Region determined automatically by AWS CLI)"
+        while true; do
+          # --- MODIFIED LINE BELOW: Use 'aws' directly, rely on PATH ---
+          aws sqs receive-message --queue-url ${props.processingQueue.queueUrl} --wait-time-seconds 10 --max-number-of-messages 1 | \\
+          # Parse with jq and append to log
+          jq -r '.Messages[] | ("Received message ID: " + .MessageId + " Body: " + .Body)' >> /home/ec2-user/sqs_messages.log
+          # Pause between polls
+          sleep 5
+        done`;
 
         // Add commands to UserData
         userData.addCommands(
