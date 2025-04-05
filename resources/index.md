@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Resources
-nav_order: 98
+nav_order: 999
 has_children: true
 ---
 
