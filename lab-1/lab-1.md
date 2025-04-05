@@ -1,4 +1,3 @@
-```markdown
 # Lab 1: Foundation & CI/CD Bootstrapping
 
 ## Goal
@@ -524,4 +523,3 @@ You have successfully completed Lab 1!
 * You verified that the EC2 instance can poll the SQS queue and log received messages.
 
 In the next lab, you will enhance the CI/CD pipeline to support deployment to a second (Prod) AWS account and implement unique resource naming.
-```
