@@ -5,11 +5,11 @@ nav_order: 21
 has_children: true
 ---
 
-**Lab 2: Cross-Account CI/CD + Resource Prefixing**
+# Lab 2: Cross-Account CI/CD + Resource Prefixing #
 
-**Goal:** Modify your CI/CD pipeline to securely deploy your stacks to a second "Prod" AWS account using an assumed IAM role. Implement a manual approval step for production deployments. Modify your CDK application to use context parameters for unique resource prefixing based on student ID and environment.
+## Goal:** Modify your CI/CD pipeline to securely deploy your stacks to a second "Prod" AWS account using an assumed IAM role. Implement a manual approval step for production deployments. Modify your CDK application to use context parameters for unique resource prefixing based on student ID and environment.
 
-**Prerequisites:**
+## Prerequisites:
 
 * Completion of Lab 1. Your CDK project should be in GitLab, and the Dev pipeline working.
 * **Instructor Provided Information:**
@@ -18,13 +18,13 @@ has_children: true
     * **`CDKDeployRole` ARN:** The full ARN of the IAM role pre-created in the Prod account that your GitLab CI job needs to assume (e.g., `arn:aws:iam::PROD_ACCOUNT_ID:role/CDKDeployRole`).
 * Your local environment configured if making changes locally (Node, CDK, Git, AWS Creds for Dev).
 
-**Step 1: Understand the Cross-Account Strategy**
+## Step 1: Understand the Cross-Account Strategy
 
 * **Goal:** Deploy the same CDK code to a separate Prod AWS account for isolation and safety.
 * **Mechanism:** Your GitLab runner (using its existing Dev credentials/role) will temporarily assume the `CDKDeployRole` in the Prod account. It gets short-lived credentials specific to that role in the Prod account. It then uses *these temporary credentials* to run `cdk bootstrap` and `cdk deploy` targeting the Prod account/region.
 * **Security:** This relies on a trust relationship configured on the `CDKDeployRole` in Prod, explicitly allowing assumption by the role/user associated with your GitLab runner in the Dev/CI account.
 
-**Step 2: Modify `.gitlab-ci.yml` for Prod Deployment**
+## Step 2: Modify `.gitlab-ci.yml` for Prod Deployment**
 
 1.  **Open `.gitlab-ci.yml`:** Edit the file locally or using the GitLab UI/IDE.
 
