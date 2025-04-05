@@ -1,3 +1,10 @@
+---
+layout: default
+title: Lab 5 Automated Tests + Infrastructure Compliance
+nav_order: 50
+has_children: true
+---
+
 # Lab 5: Automated Tests + Infrastructure Compliance
 
 ## Time Allocation

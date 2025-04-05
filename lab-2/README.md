@@ -1,3 +1,10 @@
+---
+layout: default
+title: Lab 2 Cross-Account CI/CD + Resource Prefixing
+nav_order: 20
+has_children: true
+---
+
 # Lab 2: Cross-Account CI/CD + Resource Prefixing
 
 ## Time Allocation

@@ -1,3 +1,10 @@
+---
+layout: default
+title: Lab 6 Refactor to Fargate + Monitoring + CloudFront Static Site
+nav_order: 60
+has_children: true
+---
+
 # Lab 6: Refactor to Fargate + Monitoring + CloudFront Static Site
 
 ## Time Allocation

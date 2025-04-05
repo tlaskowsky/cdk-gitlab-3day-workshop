@@ -1,3 +1,10 @@
+---
+layout: default
+title: Lab 4 AI Event Pipeline Complete (Textract + Real File Ingestion)
+nav_order: 40
+has_children: true
+---
+
 # Lab 4: Event Pipeline Complete (Textract + Real File Ingestion)
 
 ## Time Allocation

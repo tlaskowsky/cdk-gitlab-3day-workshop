@@ -1,3 +1,10 @@
+---
+layout: default
+title: Lab 3 AI (Comprehend) + DynamoDB + Custom Resource Seeding
+nav_order: 30
+has_children: true
+---
+
 # Lab 3: AI (Comprehend) + DynamoDB + Custom Resource Seeding
 
 ## Time Allocation
