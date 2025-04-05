@@ -1,3 +1,10 @@
+---
+layout: default
+title: Lab 1
+nav_order: 1
+has_children: true
+---
+
 # Lab 1: Foundation & CI/CD Bootstrapping
 
 ## Goal
