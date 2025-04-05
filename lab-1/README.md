@@ -40,6 +40,9 @@ In this lab, you will:
 - Basic understanding of CDK concepts
 - Familiarity with TypeScript
 
+## Hands-on Lab Instructions
+[Lab 1: Foundation & CI/CD Bootstrapping](lab-1)]
+
 ## Next Steps
 
 In [Lab 2](../lab-2/README.md), you'll extend this foundation by implementing cross-account CI/CD and resource prefixing.
