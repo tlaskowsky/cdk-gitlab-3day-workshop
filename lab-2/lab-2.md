@@ -7,7 +7,9 @@ has_children: true
 
 # Lab 2: Cross-Account CI/CD + Resource Prefixing #
 
-## Goal:** Modify your CI/CD pipeline to securely deploy your stacks to a second "Prod" AWS account using an assumed IAM role. Implement a manual approval step for production deployments. Modify your CDK application to use context parameters for unique resource prefixing based on student ID and environment.
+## Goal
+
+ Modify your CI/CD pipeline to securely deploy your stacks to a second "Prod" AWS account using an assumed IAM role. Implement a manual approval step for production deployments. Modify your CDK application to use context parameters for unique resource prefixing based on student ID and environment.
 
 ## Prerequisites:
 
