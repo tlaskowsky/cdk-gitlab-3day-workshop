@@ -476,6 +476,28 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
     * **Is this expected?** Yes, for this simple Lab 1 script, this behavior is expected. In later labs involving actual processing, we would add a step to delete the message after successful processing to prevent this.
 
 ---
+## Step 8: Clean Up Lab 1 Resources
+
+It's important to remove the AWS resources created during this lab to avoid unnecessary charges. Since we deployed using CDK, we can use CDK to destroy the resources.
+
+1.  **Configure Local AWS Credentials:** Ensure your **local terminal** has AWS credentials configured for the **Dev** account and region where you deployed the stacks. You can typically configure this using `aws configure` with appropriate Access Keys or by setting environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN`, `AWS_DEFAULT_REGION`).
+2.  **Navigate to Project Directory:** Open your local terminal and navigate to your CDK project directory (where your `cdk.json` file is located).
+3.  **Run CDK Destroy:** Execute the destroy command. You will need to pass the same context variables used for deployment because your app code requires them for validation and lookups. Replace `YOUR_ACCOUNT_ID` and `YOUR_REGION` with the correct values for your Dev environment if they are not set in your default AWS profile or environment variables.
+    ```bash
+    # Example destroy command - adjust account/region as needed for your Dev env
+    npx cdk destroy --all -c account=YOUR_ACCOUNT_ID -c region=YOUR_REGION
+    ```
+    * `--all`: Destroys all stacks defined in your CDK app (`CoreStack`, `ComputeStack`).
+    * `-c ...`: Provides the necessary context for account and region lookup/validation within the app code.
+4.  **Confirm Deletion:** CDK will show you the resources it plans to delete and ask for confirmation. Type `y` and press Enter.
+5.  **Monitor Deletion:** Watch the output in your terminal and check the AWS CloudFormation console. The `CoreStack` and `ComputeStack` should eventually transition to a `DELETE_COMPLETE` status.
+
+    > **Note:**
+    > * `cdk destroy` will **not** delete the pre-existing VPC (as it wasn't created by these stacks).
+    > * `cdk destroy` will **not** delete the `CDKToolkit` stack created by `cdk bootstrap`. This stack contains resources needed by CDK for deployments and can usually be left in the account.
+    > * The S3 bucket (`DocumentInputBucket`) should be deleted automatically because we set `removalPolicy: cdk.RemovalPolicy.DESTROY` and `autoDeleteObjects: true`. If `autoDeleteObjects` was false or failed, you might need to manually empty and delete the bucket first before the stack can be deleted.
+
+---
 
 ## Congratulations!
 
