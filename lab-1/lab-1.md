@@ -3,6 +3,7 @@ layout: default
 title: Lab 1 Hands-on Instructions
 nav_order: 11
 has_children: true
+parent: AWS CDK with TypeScript & GitLab CI/CD Workshop
 ---
 
 # Lab 1: Foundation & CI/CD Bootstrapping
