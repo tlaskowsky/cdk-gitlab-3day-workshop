@@ -1,0 +1,268 @@
+Resources:
+  WorkshopVPCB7B3E161:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: WorkshopVPC
+        - Key: Workshop
+          Value: DocumentPipeline
+  WorkshopVPCpublicSubnet1Subnet5E1F407A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId: !Ref WorkshopVPCB7B3E161
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/publicSubnet1
+  WorkshopVPCpublicSubnet2Subnet050546F7: # Example for 2nd AZ Public Subnet
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId: !Ref WorkshopVPCB7B3E161
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/publicSubnet2
+  WorkshopVPCprivateSubnet1Subnet1187E83D:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.2.0/24
+      VpcId: !Ref WorkshopVPCB7B3E161
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/privateSubnet1
+  WorkshopVPCprivateSubnet2SubnetE104767A: # Example for 2nd AZ Private Subnet
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.3.0/24
+      VpcId: !Ref WorkshopVPCB7B3E161
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/privateSubnet2
+  WorkshopVPCIGWD4F4916D:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC
+  WorkshopVPCVPCGWD5F6E10F:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref WorkshopVPCB7B3E161
+      InternetGatewayId: !Ref WorkshopVPCIGWD4F4916D
+  WorkshopVPCpublicSubnet1RouteTable6C74AC5B:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WorkshopVPCB7B3E161
+      Tags:
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/publicSubnet1
+  WorkshopVPCpublicSubnet1DefaultRoute95434A4E:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref WorkshopVPCpublicSubnet1RouteTable6C74AC5B
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref WorkshopVPCIGWD4F4916D
+    DependsOn:
+      - WorkshopVPCVPCGWD5F6E10F
+  WorkshopVPCpublicSubnet1RouteTableAssociation20E77981:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref WorkshopVPCpublicSubnet1RouteTable6C74AC5B
+      SubnetId: !Ref WorkshopVPCpublicSubnet1Subnet5E1F407A
+  WorkshopVPCpublicSubnet2RouteTableE777644A: # Example for 2nd Public RT
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WorkshopVPCB7B3E161
+      Tags:
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/publicSubnet2
+  WorkshopVPCpublicSubnet2DefaultRoute80275C64: # Example for 2nd Public RT Route
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref WorkshopVPCpublicSubnet2RouteTableE777644A
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref WorkshopVPCIGWD4F4916D
+    DependsOn:
+      - WorkshopVPCVPCGWD5F6E10F
+  WorkshopVPCpublicSubnet2RouteTableAssociation6A01951D: # Example for 2nd Public RTA
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref WorkshopVPCpublicSubnet2RouteTableE777644A
+      SubnetId: !Ref WorkshopVPCpublicSubnet2Subnet050546F7
+  WorkshopVPCNatGateway1EIP004FBC4D:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/NatGateway1
+  WorkshopVPCNatGateway1NATDe5E072F:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt WorkshopVPCNatGateway1EIP004FBC4D.AllocationId
+      SubnetId: !Ref WorkshopVPCpublicSubnet1Subnet5E1F407A # NAT placed in Public Subnet 1
+      Tags:
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/NatGateway1
+  WorkshopVPCprivateSubnet1RouteTable9A1F449F:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WorkshopVPCB7B3E161
+      Tags:
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/privateSubnet1
+  WorkshopVPCprivateSubnet1DefaultRoute6F581919:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref WorkshopVPCprivateSubnet1RouteTable9A1F449F
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref WorkshopVPCNatGateway1NATDe5E072F # Route via NAT GW 1
+  WorkshopVPCprivateSubnet1RouteTableAssociation8B461A6A:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref WorkshopVPCprivateSubnet1RouteTable9A1F449F
+      SubnetId: !Ref WorkshopVPCprivateSubnet1Subnet1187E83D
+  WorkshopVPCprivateSubnet2RouteTable86A014A7: # Example for 2nd Private RT
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref WorkshopVPCB7B3E161
+      Tags:
+        - Key: Name
+          Value: WorkshopNetworkStack/WorkshopVPC/privateSubnet2
+  WorkshopVPCprivateSubnet2DefaultRoute93EC16F0: # Example for 2nd Private RT Route
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref WorkshopVPCprivateSubnet2RouteTable86A014A7
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref WorkshopVPCNatGateway1NATDe5E072F # Route via NAT GW 1
+  WorkshopVPCprivateSubnet2RouteTableAssociation1F4E5B4E: # Example for 2nd Private RTA
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref WorkshopVPCprivateSubnet2RouteTable86A014A7
+      SubnetId: !Ref WorkshopVPCprivateSubnet2SubnetE104767A
+  S3Endpoint5D4F6953:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: '*'
+            Effect: Allow
+            Principal: '*'
+            Resource: '*'
+        Version: '2012-10-17'
+      RouteTableIds: # Add all relevant route tables for Gateway Endpoints
+        - !Ref WorkshopVPCpublicSubnet1RouteTable6C74AC5B
+        - !Ref WorkshopVPCpublicSubnet2RouteTableE777644A
+        - !Ref WorkshopVPCprivateSubnet1RouteTable9A1F449F
+        - !Ref WorkshopVPCprivateSubnet2RouteTable86A014A7
+      ServiceName: !Join ['', ['com.amazonaws.', !Ref 'AWS::Region', .s3]]
+      VpcId: !Ref WorkshopVPCB7B3E161
+      VpcEndpointType: Gateway
+  DynamoDBEndpoint74572274:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: '*'
+            Effect: Allow
+            Principal: '*'
+            Resource: '*'
+        Version: '2012-10-17'
+      RouteTableIds: # Add all relevant route tables for Gateway Endpoints
+        - !Ref WorkshopVPCpublicSubnet1RouteTable6C74AC5B
+        - !Ref WorkshopVPCpublicSubnet2RouteTableE777644A
+        - !Ref WorkshopVPCprivateSubnet1RouteTable9A1F449F
+        - !Ref WorkshopVPCprivateSubnet2RouteTable86A014A7
+      ServiceName: !Join ['', ['com.amazonaws.', !Ref 'AWS::Region', .dynamodb]]
+      VpcId: !Ref WorkshopVPCB7B3E161
+      VpcEndpointType: Gateway
+  SsmEndpointEndpointSecurityGroupA1B2C3D4: # Logical ID will vary
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: WorkshopNetworkStack/SsmEndpoint/Endpoint/SecurityGroup
+      VpcId: !Ref WorkshopVPCB7B3E161
+      SecurityGroupIngress:
+        - CidrIp: !GetAtt WorkshopVPCB7B3E161.CidrBlock
+          Description: Allow HTTPS from VPC
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+  SsmEndpoint1A2B3C4D: # Logical ID will vary
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - !GetAtt SsmEndpointEndpointSecurityGroupA1B2C3D4.GroupId
+      ServiceName: !Join ['', ['com.amazonaws.', !Ref 'AWS::Region', .ssm]]
+      SubnetIds: # Interface Endpoints attach to specific subnets (usually private)
+        - !Ref WorkshopVPCprivateSubnet1Subnet1187E83D
+        - !Ref WorkshopVPCprivateSubnet2SubnetE104767A
+      VpcEndpointType: Interface
+      VpcId: !Ref WorkshopVPCB7B3E161
+  # --- Definitions for other Interface Endpoints ---
+  # SsmMessagesEndpoint (similar structure to SsmEndpoint)
+  # Ec2MessagesEndpoint (similar structure to SsmEndpoint)
+  # SecretsManagerEndpoint (similar structure to SsmEndpoint)
+  # SqsEndpoint (similar structure to SsmEndpoint)
+  # LogsEndpoint (similar structure to SsmEndpoint)
+  # TextractEndpoint (similar structure to SsmEndpoint)
+  # ComprehendEndpoint (similar structure to SsmEndpoint)
+  # EcrApiEndpoint (similar structure to SsmEndpoint)
+  # EcrDkrEndpoint (similar structure to SsmEndpoint)
+  # StsEndpoint (similar structure to SsmEndpoint)
+  # --- Each Interface Endpoint requires its own Security Group ---
+Outputs:
+  VpcIdOutput:
+    Description: The ID of the Workshop VPC
+    Value: !Ref WorkshopVPCB7B3E161
+    Export:
+      Name: WorkshopVpcId
+  PublicSubnetId0:
+    Description: Workshop Public Subnet 1 ID
+    Value: !Ref WorkshopVPCpublicSubnet1Subnet5E1F407A
+    Export:
+      Name: WorkshopPublicSubnetId0
+  PublicSubnetId1: # Example for 2nd Public Subnet Output
+    Description: Workshop Public Subnet 2 ID
+    Value: !Ref WorkshopVPCpublicSubnet2Subnet050546F7
+    Export:
+      Name: WorkshopPublicSubnetId1
+  PrivateSubnetId0:
+    Description: Workshop Private Subnet 1 ID
+    Value: !Ref WorkshopVPCprivateSubnet1Subnet1187E83D
+    Export:
+      Name: WorkshopPrivateSubnetId0
+  PrivateSubnetId1: # Example for 2nd Private Subnet Output
+    Description: Workshop Private Subnet 2 ID
+    Value: !Ref WorkshopVPCprivateSubnet2SubnetE104767A
+    Export:
+      Name: WorkshopPrivateSubnetId1
