@@ -31,6 +31,7 @@ has_children: true
 1.  **Open `.gitlab-ci.yml`:** Edit the file locally or using the GitLab UI/IDE.
 
 2.  **Add Prod Stages:** Add new stages for bootstrapping and deploying to production *after* the dev stages. Find the `stages:` list near the top and modify it:
+    
     ```yaml
     stages:
       - bootstrap      # Bootstraps Dev
@@ -39,6 +40,7 @@ has_children: true
       - deploy-dev     # Deploys to Dev
       - bootstrap-prod # Bootstraps Prod (runs only before first prod deploy)
       - deploy-prod    # Deploys to Prod (manual trigger)
+    
     ```
 
 3.  **Add `bootstrap-prod` Job:** Add the following new job definition to the end of the file. This job bootstraps the Prod environment and requires manual triggering.
