@@ -1,17 +1,10 @@
----
-layout: default
-title: Lab 2 Hands-on Instructions
-nav_order: 21
-has_children: true
----
-
-# Lab 2: Cross-Account CI/CD + Resource Prefixing #
+# Lab 2: Cross-Account CI/CD + Resource Prefixing**
 
 ## Goal
 
  Modify your CI/CD pipeline to securely deploy your stacks to a second "Prod" AWS account using an assumed IAM role. Implement a manual approval step for production deployments. Modify your CDK application to use context parameters for unique resource prefixing based on student ID and environment.
 
-## Prerequisites:
+## Prerequisites
 
 * Completion of Lab 1. Your CDK project should be in GitLab, and the Dev pipeline working.
 * **Instructor Provided Information:**
@@ -20,61 +13,81 @@ has_children: true
     * **`CDKDeployRole` ARN:** The full ARN of the IAM role pre-created in the Prod account that your GitLab CI job needs to assume (e.g., `arn:aws:iam::PROD_ACCOUNT_ID:role/CDKDeployRole`).
 * Your local environment configured if making changes locally (Node, CDK, Git, AWS Creds for Dev).
 
-## Step 1: Understand the Cross-Account Strategy
+**Step 0: Verify Starting Code**
 
+Before making changes for Lab 2, let's ensure your key files match the final working state from Lab 1 after troubleshooting.
+
+1.  **Check `.gitlab-ci.yml`:** Your file should look like the version from `gitlab_ci_v15_conventional_order` (provided previously in chat or Canvas). Key features: conventional key order, `script: |` for main jobs, `npm ci` in relevant jobs, `if` checks and `-c` flags included.
+    > **Note:** If your file doesn't match, please update it now using the content from `gitlab_ci_v15_conventional_order` before proceeding.
+
+2.  **Check `bin/<your-project-name>.ts`:** Your app entry point should look like the version from `cdk_app_v4_no_dep` (provided previously in chat or Canvas). Key features: Reads context/env vars for account/region, instantiates stacks *without* doing VPC lookup here, applies aspects.
+    > **Note:** If your file doesn't match, please update it now using the content from `cdk_app_v4_no_dep` before proceeding.
+
+3.  **Check `lib/compute-stack.ts`:** Your compute stack should look like the version from `compute_stack_v6_force_replace` (provided previously in chat or Canvas, incorporating the heredoc script write and quoted echo). Key features: Performs `Vpc.fromLookup` inside constructor, uses heredoc to create `poll_sqs.sh` with embedded queue URL and quoted `echo`, forces instance replacement via logical ID.
+    > **Note:** If your file doesn't match, please update it now using the content from `compute_stack_v6_force_replace` before proceeding.
+
+**Step 1: Understand the Cross-Account Strategy**
+
+*(This section remains the same - explains AssumeRole concept)*
 * **Goal:** Deploy the same CDK code to a separate Prod AWS account for isolation and safety.
 * **Mechanism:** Your GitLab runner (using its existing Dev credentials/role) will temporarily assume the `CDKDeployRole` in the Prod account. It gets short-lived credentials specific to that role in the Prod account. It then uses *these temporary credentials* to run `cdk bootstrap` and `cdk deploy` targeting the Prod account/region.
 * **Security:** This relies on a trust relationship configured on the `CDKDeployRole` in Prod, explicitly allowing assumption by the role/user associated with your GitLab runner in the Dev/CI account.
 
-## Step 2: Modify `.gitlab-ci.yml` for Prod Deployment**
+**Step 2: Modify `.gitlab-ci.yml` for Prod Deployment**
 
-1.  **Open `.gitlab-ci.yml`:** Edit the file locally or using the GitLab UI/IDE.
+1.  **Open `.gitlab-ci.yml`:** Open your verified starting file from Step 0.
 
-2.  **Add Prod Stages:** Add new stages for bootstrapping and deploying to production *after* the dev stages. Find the `stages:` list near the top and modify it:
-    
+2.  **Add Prod Stages:** Find the `stages:` list near the top and **add** the new stages for production using **underscores** for consistency:
     ```yaml
     stages:
       - bootstrap      # Bootstraps Dev
       - validate       # Validates Dev connection
       - build          # Builds CDK app
-      - deploy-dev     # Deploys to Dev
-      - bootstrap-prod # Bootstraps Prod (runs only before first prod deploy)
-      - deploy-prod    # Deploys to Prod (manual trigger)
-    
+      - deploy_dev     # Deploys to Dev (Using underscore)
+      - bootstrap_prod # ADD THIS STAGE (Using underscore)
+      - deploy_prod    # ADD THIS STAGE (Using underscore)
     ```
 
-3.  **Add `bootstrap-prod` Job:** Add the following new job definition to the end of the file. This job bootstraps the Prod environment and requires manual triggering.
+3.  **Add `bootstrap_prod` Job:** Add the following **new job definition** to the *end* of the `.gitlab-ci.yml` file. Note the conventional key order.
     ```yaml
     # Job to Bootstrap the Prod environment (Run manually when needed)
     bootstrap_prod:
-      stage: bootstrap-prod
+      stage: bootstrap_prod # Use underscore
       image: node:${NODE_VERSION} # Assuming NODE_VERSION is defined in variables
       tags: [cdk] # Assuming 'cdk' runner tag
-      cache: # Pull cache for dependencies
+      cache: # Setup keys first (conventional order)
         key:
           files:
             - package-lock.json
         paths:
           - node_modules/
         policy: pull
-      script: |
+      # No needs
+      # No dependencies
+      script: | # Script block
         echo "Installing dependencies for bootstrap job..."
         npm ci
+        # --- Add jq install if needed ---
+        # The 'aws sts assume-role' command below uses jq to parse JSON.
+        # If jq is not included in the base node image, uncomment and adapt one of the following lines:
+        # echo "Ensuring jq is installed..."
+        # apt-get update && apt-get install -y jq || apk add --no-cache jq # Example for Debian/Alpine based images
         echo "Attempting to assume role in Prod account: ${PROD_ACCOUNT_ID}..."
         # --- Assume Role Script ---
         # Replace <CDKDeployRole_ARN> with the ARN provided by the instructor
         # Ensure PROD_ACCOUNT_ID and PROD_REGION are set as GitLab CI/CD variables
+        # Note about ROLE_ARN: While PROD_ACCOUNT_ID and PROD_REGION are set as variables for flexibility,
+        # the ROLE_ARN is kept inline here for clarity during the lab, ensuring you consciously use
+        # the specific role ARN provided. In a real-world scenario, this might also be a protected variable.
         ROLE_ARN="<CDKDeployRole_ARN>" # !!! REPLACE THIS !!!
         SESSION_NAME="GitLab-ProdBootstrap-${CI_PIPELINE_ID}"
         echo "Assuming Role ARN: ${ROLE_ARN}"
-        # Use AWS CLI to assume the role and capture credentials. Ensure jq is available or parse differently.
-        # Consider adding 'apk add --no-cache jq' or 'apt-get update && apt-get install -y jq' if jq isn't in the Node image.
         CREDENTIALS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION_NAME}" --query 'Credentials' --output json)
         if [ -z "$CREDENTIALS" ] || [ "$CREDENTIALS" == "null" ]; then echo "Failed to assume role! Check Role ARN, Trust Policy, and Prod Account ID variable."; exit 1; fi
         export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | jq -r '.AccessKeyId')
         export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | jq -r '.SecretAccessKey')
         export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | jq -r '.SessionToken')
-        if [ "$AWS_ACCESS_KEY_ID" == "null" ]; then echo "Failed to parse credentials from assumed role!"; exit 1; fi
+        if [ "$AWS_ACCESS_KEY_ID" == "null" ]; then echo "Failed to parse credentials from assumed role! Is jq installed?"; exit 1; fi
         echo "Role assumed successfully. Session token expires at: $(echo $CREDENTIALS | jq -r '.Expiration')"
         # Verify assumed identity
         echo "Verifying assumed identity..."
@@ -88,48 +101,54 @@ has_children: true
           -c account=${PROD_ACCOUNT_ID} \
           -c region=${PROD_REGION}
         echo "Bootstrap complete for Prod environment."
+      # No artifacts
+      # No environment
+      rules: # Control keys last
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: manual # Only run when manually triggered from GitLab UI
       allow_failure: false # Fail the pipeline if manual bootstrap fails
-      rules:
-        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     ```
     > **Action Required:**
     > * Replace `<CDKDeployRole_ARN>` with the actual ARN provided by your instructor.
     > * Ensure `PROD_ACCOUNT_ID` and `PROD_REGION` are configured as **CI/CD variables** in your GitLab project settings (Settings -> CI/CD -> Variables). Mask these variables if possible.
-    > * *Note:* The script assumes `jq` is available to parse JSON. If the `node` image doesn't have it, you might need to add an install command (e.g., `apt-get update && apt-get install -y jq` for Debian-based images, or `apk add --no-cache jq` for Alpine-based images) at the start of the script.
+    > * Check/add `jq` install if needed.
 
-4.  **Add `deploy-prod` Job:** Add the following job definition to the end of the file. This job deploys to production, assumes the same role, and requires manual triggering.
+4.  **Add `deploy_prod` Job:** Add the following **new job definition** to the *end* of the `.gitlab-ci.yml` file. Note the conventional key order and manual trigger.
     ```yaml
     # Job to deploy the CDK application to the Prod environment
     deploy_to_prod:
-      stage: deploy-prod
+      stage: deploy_prod # Use underscore
       image: node:${NODE_VERSION} # Assuming NODE_VERSION is defined in variables
       tags: [cdk] # Assuming 'cdk' runner tag
-      cache: # Pull cache for dependencies
+      cache: # Setup keys first
         key:
           files:
             - package-lock.json
         paths:
           - node_modules/
         policy: pull
-      needs: # Depends on build_cdk completing successfully
-        - job: build_cdk
+      needs: # Setup keys first
+        - job: build_cdk # Depends on build_cdk completing successfully
       dependencies: [build_cdk] # Download cdk.out artifact
-      script: |
+      script: | # Script block
         echo "Installing dependencies for deploy job..."
         npm ci
+        # --- Add jq install if needed ---
+        # Uncomment the appropriate line below if jq is not in the base node image
+        # echo "Ensuring jq is installed..."
+        # apt-get update && apt-get install -y jq || apk add --no-cache jq # Example for Debian/Alpine
         echo "Attempting to assume role in Prod account: ${PROD_ACCOUNT_ID}..."
-        # --- Assume Role Script (same as bootstrap-prod) ---
+        # --- Assume Role Script (same as bootstrap_prod) ---
+        # Note about ROLE_ARN: See note in bootstrap_prod job.
         ROLE_ARN="<CDKDeployRole_ARN>" # !!! REPLACE THIS !!!
         SESSION_NAME="GitLab-ProdDeploy-${CI_PIPELINE_ID}"
         echo "Assuming Role ARN: ${ROLE_ARN}"
-        # Ensure jq is available if needed
         CREDENTIALS=$(aws sts assume-role --role-arn "${ROLE_ARN}" --role-session-name "${SESSION_NAME}" --query 'Credentials' --output json)
         if [ -z "$CREDENTIALS" ] || [ "$CREDENTIALS" == "null" ]; then echo "Failed to assume role!"; exit 1; fi
         export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | jq -r '.AccessKeyId')
         export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | jq -r '.SecretAccessKey')
         export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | jq -r '.SessionToken')
-        if [ "$AWS_ACCESS_KEY_ID" == "null" ]; then echo "Failed to parse credentials from assumed role!"; exit 1; fi
+        if [ "$AWS_ACCESS_KEY_ID" == "null" ]; then echo "Failed to parse credentials from assumed role! Is jq installed?"; exit 1; fi
         echo "Role assumed successfully. Session token expires at: $(echo $CREDENTIALS | jq -r '.Expiration')"
         # Verify assumed identity
         echo "Verifying assumed identity..."
@@ -144,6 +163,7 @@ has_children: true
         PROD_PREFIX="${STUDENT_PREFIX}-prod"
         echo "Using prefix: ${PROD_PREFIX}"
         # Pass context explicitly, including prefix and environment
+        # Note: Command broken onto multiple lines using \ for readability
         npx cdk deploy --all \
           --require-approval never \
           --outputs-file cdk-outputs-prod.json \
@@ -152,24 +172,30 @@ has_children: true
           -c prefix=${PROD_PREFIX} \
           -c environment=prod
         echo "Deployment to Prod complete."
-      environment: # Define GitLab environment
+      artifacts: # Post-execution keys
+        paths:
+          - cdk-outputs-prod.json # Use different name for prod outputs
+        expire_in: 1 day
+      environment: # Post-execution keys
         name: production
         # url: <Your Production URL if applicable>
+      rules: # Control keys last
+        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: manual # *** IMPORTANT: Makes this a manual action in GitLab UI ***
       allow_failure: false # Fail pipeline if manual deploy fails
-      rules:
-        - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     ```
     > **Action Required:**
     > * Replace `<CDKDeployRole_ARN>` again.
-    > * Modify the `STUDENT_PREFIX` line to use a suitable unique identifier. Using `$GITLAB_USER_LOGIN` is often convenient if available and unique among students. Alternatively, define a CI/CD variable like `STUDENT_ID` in GitLab (Settings -> CI/CD -> Variables) and use `STUDENT_PREFIX="${STUDENT_ID:-stuXX}"`. Discuss with your instructor the preferred method.
+    > * Modify the `STUDENT_PREFIX` line to use a suitable unique identifier (e.g., `$GITLAB_USER_LOGIN` or `$STUDENT_ID` variable).
+    > * Check if `jq` needs to be installed.
 
-5.  **Modify `deploy-dev` Job:** Add the context flags (`-c prefix=... -c environment=dev`) to the `deploy-dev` job as well for consistency and to apply the prefixing scheme to the Dev environment.
+5.  **Modify `deploy_dev` Job:** Find the existing `deploy_dev` job. Ensure its `stage:` key is `deploy_dev` (with underscore). **Modify its `script:` block** to add the context flags (`-c prefix=... -c environment=dev`).
     ```yaml
-    # Find the existing deploy_to_dev job and modify its script block
+    # Find the existing deploy_dev job and modify its stage and script block
 
-    deploy_to_dev:
-      # ... (stage, image, tags, cache, needs, dependencies remain same) ...
+    deploy_dev:
+      stage: deploy_dev # Ensure stage name uses underscore
+      # ... (image, tags, cache, needs, dependencies using conventional order from Lab 1 final) ...
       script: | # Keep multi-line format
         echo "Installing dependencies for deploy job..."
         npm ci
@@ -183,7 +209,8 @@ has_children: true
         STUDENT_PREFIX="${GITLAB_USER_LOGIN:-stuXX}" # Use same logic as Prod
         DEV_PREFIX="${STUDENT_PREFIX}-dev"
         echo "Using prefix: ${DEV_PREFIX}"
-        # *** Add context flags ***
+        # *** Modify cdk deploy command to ADD context flags ***
+        # Note: Command broken onto multiple lines using \ for readability
         npx cdk deploy --all \
           --require-approval never \
           --outputs-file cdk-outputs.json \
@@ -192,15 +219,15 @@ has_children: true
           -c prefix=${DEV_PREFIX} \
           -c environment=dev
         echo "Deployment complete."
-      # ... (environment, artifacts, rules remain same) ...
+      # ... (artifacts, environment, rules using conventional order from Lab 1 final) ...
     ```
-    > **Action Required:** Modify the `STUDENT_PREFIX` line consistently with the choice made for the `deploy-prod` job.
+    > **Action Required:** Modify the `STUDENT_PREFIX` line consistently.
 
 ---
 
 ## Step 3: Implement Resource Prefixing in CDK Code
 
-1.  **Modify `bin/<your-project-name>.ts`:** Update the app entry point to read the `prefix` and `environment` context variables passed from the CI/CD pipeline and use them when creating Stack IDs.
+1.  **Modify `bin/<your-project-name>.ts`:** Update the app entry point (use your verified starting code from Step 0) to **read the new context variables** (`prefix`, `environment`) and use them when creating Stack IDs and setting tags.
     ```typescript
     #!/usr/bin/env node
     import 'source-map-support/register';
@@ -212,7 +239,7 @@ has_children: true
     const app = new cdk.App();
 
     // --- Read Context Variables ---
-    // Get prefix and environment passed via -c flags.
+    // Get prefix and environment passed via -c flags from CI/CD.
     // Provide sensible defaults for local execution if context isn't passed.
     const environment = app.node.tryGetContext('environment') || 'dev'; // Default to 'dev'
     // Default prefix combines 'stuXX' and environment. Replace 'stuXX' if using a different default/variable.
@@ -238,11 +265,12 @@ has_children: true
     };
 
     // --- Instantiate Stacks with Prefixed IDs ---
-    // Use the resolved prefix in the Stack ID for uniqueness across students/environments
+    // *** CHANGE: Use the prefix in the Stack ID ***
     console.log('Instantiating CoreStack...');
     const coreStack = new CoreStack(app, `${prefix}-CoreStack`, deploymentProps);
 
     console.log('Instantiating ComputeStack...');
+    // *** CHANGE: Use the prefix in the Stack ID ***
     const computeStack = new ComputeStack(app, `${prefix}-ComputeStack`, {
       ...deploymentProps,
       processingQueue: coreStack.queue,
@@ -250,38 +278,40 @@ has_children: true
 
     // --- Apply Aspects with Environment & Prefix Tags ---
     console.log('Applying aspects for tagging...');
-    // Use the environment context variable for the tag value
+    // *** CHANGE: Use the environment variable for the tag ***
     cdk.Aspects.of(app).add(new BasicTagger('environment', environment));
     cdk.Aspects.of(app).add(new BasicTagger('project', 'doc-pipeline-workshop'));
-    // Add prefix tag for easier identification in the console
+    // *** CHANGE: Add prefix tag ***
     cdk.Aspects.of(app).add(new BasicTagger('prefix', prefix));
     console.log('Tagging aspects applied.');
     ```
-    > **Action Required:** Replace `stuXX` in the default prefix calculation (`stuXX-${environment}`) if you used a different default or variable (like `$STUDENT_ID`) in your CI/CD file, ensuring local `cdk` commands can generate a reasonable default prefix if needed.
+    > **Action Required:** Replace `stuXX` in the default prefix calculation (`stuXX-${environment}`) if you used a different default or variable (like `$STUDENT_ID`) in your CI/CD file.
 
-2.  **(Optional) Modify Stacks for Prefixed Resource Names:** As mentioned in the lecture notes, prefixing the Stack names (as done above) is often sufficient for this lab. Rely on CDK's auto-generated physical IDs for uniqueness within the stack. We will **skip** explicitly naming resources like buckets/queues with prefixes for now.
+2.  **(Optional) Modify Stacks for Prefixed Resource Names:** We will **skip** explicitly naming resources like buckets/queues with prefixes for now. Stack name prefixing and tagging are sufficient for this lab.
 
 ---
 
 ## Step 4: Deploy and Verify
 
 1.  **Commit and Push:** Save all changes to `.gitlab-ci.yml` and `bin/<your-project-name>.ts`. Commit and push to GitLab.
-    ```bash
-    git add .
-    git commit -m "Lab 2: Add Prod deploy stage and resource prefixing"
-    git push origin main
-    ```
+    * **Using GitLab Web UI:** Commit the changes directly using the UI options.
+    * **Using VS Code + Git CLI:** Stage, commit, and push your changes using the terminal:
+        ```bash
+        git add .
+        git commit -m "Lab 2: Add Prod deploy stage and resource prefixing"
+        git push origin main # Or master
+        ```
 
-2.  **Monitor Dev Pipeline:** Go to `Build -> Pipelines` in GitLab. Verify the pipeline runs successfully for the `dev` stages (`bootstrap_dev` might be skipped if already run, `validate`, `build`, `deploy-dev`).
+2.  **Monitor Dev Pipeline:** Go to `Build -> Pipelines` in GitLab. Verify the pipeline runs successfully for the `dev` stages (`bootstrap_dev` might be skipped, `validate`, `build`, `deploy_dev`).
     * Check CloudFormation in the **Dev** account. The stack names should now include your unique prefix (e.g., `stuXX-dev-CoreStack`, `stuXX-dev-ComputeStack`). Resources should be tagged with `environment: dev` and `prefix: stuXX-dev`.
 
 3.  **Bootstrap Prod (If First Time):**
-    * In the GitLab pipeline view, find the `bootstrap-prod` job. It should be waiting for manual execution (look for a "play" icon).
+    * In the GitLab pipeline view, find the `bootstrap_prod` job. It should be in a `manual` state (look for a "play" icon).
     * Click the **"play" icon** to run it.
     * Monitor the job log in GitLab. Ensure it successfully assumes the role (check the `aws sts get-caller-identity` output) and runs `cdk bootstrap` in the Prod account/region without errors.
 
 4.  **Deploy to Prod:**
-    * In the GitLab pipeline view, find the `deploy-prod` job. It should also be waiting for manual execution.
+    * In the GitLab pipeline view, find the `deploy_prod` job. It should also be in a `manual` state.
     * Click the **"play" icon** to run it. This simulates a manual approval/promotion to production.
     * Monitor the job log. Verify it assumes the role successfully and runs `cdk deploy` without errors.
 
@@ -295,18 +325,22 @@ has_children: true
 
 ---
 
-## Step 5: Cleanup (Optional)
+## Step 5: Clean Up Resources
 
-* Cleanup is optional now, but if you wanted to destroy resources, you would run `cdk destroy` locally, targeting each environment separately using the correct context flags:
+* **Importance:** If you manually triggered the `deploy_to_prod` job and successfully deployed resources to the Prod account, you **should clean them up** using `cdk destroy` targeting the Prod environment to avoid unnecessary costs after the lab/workshop. If you only deployed to Dev (or skipped the manual Prod deploy), you only need to clean up Dev.
+* **Method:** Run `cdk destroy` from your **local terminal**, targeting each environment separately using the correct context flags and ensuring your local AWS credentials match the target environment.
+
     ```bash
-    # Destroy Dev (ensure local AWS creds point to Dev account/region)
+    # Destroy Dev (ensure local AWS creds/profile point to Dev account/region)
     # Replace stuXX, DEV_ACCOUNT_ID, DEV_REGION with your values
     npx cdk destroy --all -c prefix=stuXX-dev -c environment=dev -c account=DEV_ACCOUNT_ID -c region=DEV_REGION
 
-    # Destroy Prod (ensure local AWS creds point to Prod account/region OR use assumed role locally)
+    # Destroy Prod (ONLY IF YOU DEPLOYED TO PROD)
+    # Ensure local AWS creds/profile point to Prod account/region OR configure local role assumption
     # Replace stuXX, PROD_ACCOUNT_ID, PROD_REGION with your values
     npx cdk destroy --all -c prefix=stuXX-prod -c environment=prod -c account=PROD_ACCOUNT_ID -c region=PROD_REGION
     ```
+* Confirm deletion when prompted by CDK. Monitor stack deletion in the CloudFormation console for both accounts if applicable. Remember this does not delete the VPC or the CDKToolkit stacks.
 
 ---
 
