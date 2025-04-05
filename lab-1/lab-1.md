@@ -1,23 +1,3 @@
-Okay, thank you for clarifying the student environment and providing the working CI/CD snippet. That's very helpful! Knowing credentials are pre-configured at the group level and that there's a specific runner tag (`cdk`) simplifies things considerably.
-
-Let's refine the Lab 1 materials incorporating these details.
-
----
-
-### Part 1: Instructor Lecture Slides Content (Outline)
-
-*(No major changes needed here based on the environment details, but the instructor should verbally mention the GitLab group setup, pre-configured AWS credentials, and the choice of Web UI/VS Code during the introduction or Lab Setup slides.)*
-
-**Potential additions/notes for instructor:**
-
-* **(During Intro/Setup):** "You'll each work within your own GitLab group where AWS credentials and necessary defaults are already set up for you. Your pipelines will use a specific runner tagged 'cdk'."
-* **(During GitLab CI/CD Basics):** "Since credentials are pre-configured in your GitLab group, the runner automatically gets secure access to AWS – you won't need to manage keys in your CI/CD script."
-* **(During Lab Intro):** "You can edit code using the GitLab Web UI directly or clone the repository and use VS Code with Git. If using VS Code, remember standard Git commands like `git add`, `git commit`, and `git push` to trigger your pipeline."
-
----
-
-### Part 2: Step-by-Step Lab Instructions (Self-Directed - Revised)
-
 **Lab 1: Foundation & CI/CD Bootstrapping**
 
 **Goal:** Initialize your CDK project, define stacks for core resources (S3, SQS) and compute (EC2), connect them, add basic tagging, set up a simple GitLab CI/CD pipeline leveraging pre-configured credentials for deployment to Dev, and verify the basic S3 -> SQS -> EC2 logging flow.
