@@ -25,23 +25,38 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 
 ## Step 1: Initialize CDK Project
 
-1.  **Create Project:** In your GitLab group, create a new **blank project** (e.g., `doc-pipeline-lab`). Initialize it **with a README**.
-2.  **Clone (if using VS Code):** Clone the new project repository to your local machine and navigate into the directory.
-    ```bash
-    git clone <your-gitlab-repo-url.git>
-    cd <your-project-name>
-    ```
-    > **Note:** If using the GitLab Web IDE, you can skip the cloning step and open the terminal directly within the Web IDE.
-3.  **Initialize CDK App (in VS Code Terminal or GitLab Web IDE Terminal):**
-    Run the following command. It will ask if you want to overwrite files like `README.md`; type `y` and press Enter.
+1.  **Create Blank Project:** In your GitLab group, create a new **blank project** (e.g., `doc-pipeline-lab`). Initialize it **with a README**. Do **not** add templates like `.gitignore` or `LICENSE` yet, as `cdk init` will provide some.
+
+2.  **Clone Locally:**
+    * Navigate to your newly created project's main page in the GitLab UI.
+    * Click the blue **"Clone"** button (usually near the top right).
+    * Copy the URL provided under **"Clone with HTTPS"**. It will look something like `https://gitlab.com/your-group/your-project.git`.
+    * In your **local terminal**, use the copied URL with the `git clone` command. Then navigate into the newly created project directory. Replace `PASTE_HTTPS_URL_HERE` with the URL you copied.
+        ```bash
+        git clone PASTE_HTTPS_URL_HERE
+        cd <your-project-name> # The directory name usually matches your project name
+        ```
+
+3.  **Initialize CDK App Locally:** Run the `cdk init` command in your **local terminal** within the cloned project directory. This command requires Node.js and the CDK Toolkit to be installed locally.
     ```bash
     cdk init app --language typescript
     ```
-4.  **Review Structure:** Familiarize yourself with `bin/`, `lib/`, `package.json`, `cdk.json`.
-5.  **Install Dependencies:** Ensure `aws-cdk-lib` and `constructs` are listed in your `package.json`. If needed, install them (usually `cdk init` handles this):
+    > **Note:** This command populates your local directory with the necessary CDK project structure and files (including `.gitignore`, `package.json`, etc.). It might ask to overwrite the `README.md`; you can allow this.
+
+4.  **Review Structure:** Familiarize yourself locally with the generated `bin/`, `lib/`, `package.json`, `cdk.json`, `.gitignore` files.
+
+5.  **Install Dependencies (Locally):** Although `cdk init` usually runs `npm install`, it's good practice to ensure dependencies are installed locally.
     ```bash
-    npm install aws-cdk-lib constructs
+    npm install
     ```
+
+6.  **Commit Initial Project:** Stage, commit, and push the CDK-generated project structure to your GitLab repository. This makes the base project available in GitLab for the CI/CD pipeline.
+    ```bash
+    git add .
+    git commit -m "Initial project structure from cdk init"
+    git push origin main # Or master
+    ```
+    > After this initial push, you can choose to continue working locally with VS Code or use the GitLab Web UI/IDE for subsequent file edits, committing changes as you go.
 
 ---
 
