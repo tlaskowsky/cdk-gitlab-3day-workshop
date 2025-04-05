@@ -9,12 +9,12 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 * You will work within your assigned GitLab group. Create a new project within this group for this lab series (e.g., `doc-pipeline-lab`).
 * Your GitLab group has AWS credentials pre-configured, providing Admin access to a designated AWS account. Your CI/CD pipeline will automatically use these credentials.
 * A GitLab Runner tagged `cdk` is available to run your pipeline jobs.
-* You can use the GitLab Web UI (Repository -> Files, Web IDE) or clone the repository to use VS Code locally.
+* You will need a local environment (like VS Code with a terminal) to initialize the CDK project. Subsequent edits can be made locally or via the GitLab Web UI/IDE.
 
 ## Prerequisites
 
 * Access to your GitLab group and project.
-* **If using VS Code locally:**
+* **Local Development Environment:**
     * Node.js (v18 or later recommended) and npm installed.
     * AWS CDK Toolkit installed (`npm install -g aws-cdk`).
     * Git installed and configured.
@@ -26,30 +26,25 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 ## Step 1: Initialize CDK Project
 
 1.  **Create Blank Project:** In your GitLab group, create a new **blank project** (e.g., `doc-pipeline-lab`). Initialize it **with a README**. Do **not** add templates like `.gitignore` or `LICENSE` yet, as `cdk init` will provide some.
-
 2.  **Clone Locally:**
     * Navigate to your newly created project's main page in the GitLab UI.
-    * Click the blue **"Code"** button (usually near the top right).
+    * Click the blue **"Clone"** button (usually near the top right).
     * Copy the URL provided under **"Clone with HTTPS"**. It will look something like `https://gitlab.com/your-group/your-project.git`.
     * In your **local terminal**, use the copied URL with the `git clone` command. Then navigate into the newly created project directory. Replace `PASTE_HTTPS_URL_HERE` with the URL you copied.
         ```bash
         git clone PASTE_HTTPS_URL_HERE
         cd <your-project-name> # The directory name usually matches your project name
         ```
-
 3.  **Initialize CDK App Locally:** Run the `cdk init` command in your **local terminal** within the cloned project directory. This command requires Node.js and the CDK Toolkit to be installed locally.
     ```bash
     cdk init app --language typescript
     ```
     > **Note:** This command populates your local directory with the necessary CDK project structure and files (including `.gitignore`, `package.json`, etc.). It might ask to overwrite the `README.md`; you can allow this.
-
 4.  **Review Structure:** Familiarize yourself locally with the generated `bin/`, `lib/`, `package.json`, `cdk.json`, `.gitignore` files.
-
 5.  **Install Dependencies (Locally):** Although `cdk init` usually runs `npm install`, it's good practice to ensure dependencies are installed locally.
     ```bash
     npm install
     ```
-
 6.  **Commit Initial Project:** Stage, commit, and push the CDK-generated project structure to your GitLab repository. This makes the base project available in GitLab for the CI/CD pipeline.
     ```bash
     git add .
@@ -62,7 +57,7 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 
 ## Step 2: Define the Core Stack (S3 Bucket, SQS Queue)
 
-1.  **Delete Example Stack:** Remove the sample stack file created by `cdk init`:
+1.  **Delete Example Stack:** Remove the sample stack file created by `cdk init` (either locally or via GitLab UI):
     ```bash
     # Replace <your-project-name> with the actual filename
     rm lib/<your-project-name>-stack.ts
@@ -111,7 +106,7 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 ## Step 3: Define the Compute Stack (EC2 Instance)
 
 1.  **Create `compute-stack.ts`:** Create a new file named `lib/compute-stack.ts`.
-2.  **Add Code:** Paste the following TypeScript code. This stack requires the VPC and the SQS queue.
+2.  **Add Code:** Paste the following TypeScript code.
     ```typescript
     // lib/compute-stack.ts
     import * as cdk from 'aws-cdk-lib';
@@ -121,71 +116,98 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
     import * as sqs from 'aws-cdk-lib/aws-sqs';
 
     export interface ComputeStackProps extends cdk.StackProps {
-      vpc: ec2.IVpc; // Expects the VPC object
-      processingQueue: sqs.Queue; // Expects the queue object
+      processingQueue: sqs.Queue;
     }
 
     export class ComputeStack extends cdk.Stack {
       constructor(scope: Construct, id: string, props: ComputeStackProps) {
         super(scope, id, props);
 
-        // IAM Role for EC2 instance
+        // --- Look up VPC ---
+        const vpc = ec2.Vpc.fromLookup(this, 'ImportedVpc', {
+          tags: { Name: 'WorkshopVPC' }, isDefault: false,
+        });
+
+        // --- IAM Role ---
         const ec2Role = new iam.Role(this, 'EC2InstanceRole', {
           assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
           managedPolicies: [
             iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'),
           ],
-        });
-        props.processingQueue.grantConsumeMessages(ec2Role); // Grant SQS permissions
+         });
+        props.processingQueue.grantConsumeMessages(ec2Role);
 
-        // Security Group for EC2 instance
+        // --- Security Group ---
         const ec2SecurityGroup = new ec2.SecurityGroup(this, 'EC2SecurityGroup', {
-          vpc: props.vpc,
+          vpc: vpc,
           description: 'Security group for the document processing EC2 instance',
-          allowAllOutbound: true, // Allow outbound connections
+          allowAllOutbound: true,
         });
 
-        // UserData script for instance setup and polling
+        // --- EC2 UserData (Writing script directly via heredoc) ---
         const userData = ec2.UserData.forLinux();
+
+        // Define the script content using a template literal.
+        // Ensure the echo command has its argument double-quoted.
+        const pollingScript = `#!/bin/bash
+    # --- Ensure this line has quotes around the echoed string ---
+    echo "Polling SQS Queue: ${props.processingQueue.queueUrl} (Region determined automatically by AWS CLI)"
+    while true; do
+      # Use full path for aws cli
+      /usr/local/bin/aws sqs receive-message --queue-url ${props.processingQueue.queueUrl} --wait-time-seconds 10 --max-number-of-messages 1 | \\
+      # Parse with jq and append to log
+      jq -r '.Messages[] | ("Received message ID: " + .MessageId + " Body: " + .Body)' >> /home/ec2-user/sqs_messages.log
+      # Pause between polls
+      sleep 5
+    done`;
+
+        // Add commands to UserData
         userData.addCommands(
+          // Add dummy command to force updates if needed
+          'echo "UserData Update Trigger: $(date)" > /home/ec2-user/userdata_trigger.log',
+          // Install tools
           'sudo yum update -y',
-          'sudo yum install -y unzip jq', // Install utilities
-          'echo "Installing AWS CLI v2..."', // Install AWS CLI v2
+          'sudo yum install -y unzip jq',
+          'echo "Installing AWS CLI v2..."',
           'curl "[https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip](https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip)" -o "awscliv2.zip"',
           'unzip awscliv2.zip',
           'sudo ./aws/install',
           'rm -rf aws awscliv2.zip',
           'echo "AWS CLI installed successfully."',
-          // Setup environment variables for the polling script
-          `echo "export QUEUE_URL=${props.processingQueue.queueUrl}" >> /etc/environment`,
-          `echo "export AWS_REGION=${this.region}" >> /etc/environment`,
-          // Create the polling script
+          // Write the entire script using a heredoc
           'echo "Creating polling script..."',
-          'echo "#!/bin/bash" > /home/ec2-user/poll_sqs.sh',
-          'echo "source /etc/environment" >> /home/ec2-user/poll_sqs.sh',
-          'echo "echo Polling SQS Queue: \${QUEUE_URL} in region \${AWS_REGION}" >> /home/ec2-user/poll_sqs.sh',
-          'echo "while true; do /usr/local/bin/aws sqs receive-message --queue-url \${QUEUE_URL} --region \${AWS_REGION} --wait-time-seconds 10 --max-number-of-messages 1 | jq -r \'.Messages[] | (\\\"Received message ID: \\\" + .MessageId + \\\" Body: \\\" + .Body)\' >> /home/ec2-user/sqs_messages.log; sleep 5; done" >> /home/ec2-user/poll_sqs.sh',
+          `cat <<'EOF' > /home/ec2-user/poll_sqs.sh
+    ${pollingScript}
+    EOF`,
           'chmod +x /home/ec2-user/poll_sqs.sh',
+          // Ensure correct ownership
+          'chown ec2-user:ec2-user /home/ec2-user/poll_sqs.sh',
+          'touch /home/ec2-user/sqs_messages.log && chown ec2-user:ec2-user /home/ec2-user/sqs_messages.log',
+          'touch /home/ec2-user/poll_sqs.out && chown ec2-user:ec2-user /home/ec2-user/poll_sqs.out',
+          'touch /home/ec2-user/userdata_trigger.log && chown ec2-user:ec2-user /home/ec2-user/userdata_trigger.log',
           'echo "Polling script created."',
-          // Run the script in the background
+          // Run the script as ec2-user
           'echo "Starting polling script in background..."',
           'sudo -u ec2-user bash -c "nohup /home/ec2-user/poll_sqs.sh > /home/ec2-user/poll_sqs.out 2>&1 &"',
           'echo "UserData script finished."'
         );
 
-        // EC2 Instance Definition
-        const instance = new ec2.Instance(this, 'ProcessingInstance', {
-          vpc: props.vpc, // Use the VPC passed in props
-          vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }, // Place in private subnet
-          instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
-          machineImage: ec2.MachineImage.latestAmazonLinux2023(),
-          securityGroup: ec2SecurityGroup,
-          role: ec2Role,
-          userData: userData,
+        // --- EC2 Instance Definition (FORCE REPLACEMENT) ---
+        // Keep forcing replacement for now until UserData is stable
+        const instanceLogicalId = `ProcessingInstance-${Date.now()}`;
+        const instance = new ec2.Instance(this, instanceLogicalId, { // Use dynamic logical ID
+            vpc: vpc,
+            vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+            instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
+            machineImage: ec2.MachineImage.latestAmazonLinux2023(),
+            securityGroup: ec2SecurityGroup,
+            role: ec2Role,
+            userData: userData, // Use the updated userData
         });
 
-        // Stack Output
-        new cdk.CfnOutput(this, 'InstanceId', { value: instance.instanceId });
+        // --- Stack Outputs ---
+        new cdk.CfnOutput(this, 'InstanceIdOutput', { value: instance.instanceId });
+        new cdk.CfnOutput(this, 'LookedUpVpcId', { value: vpc.vpcId });
       }
     }
     ```
@@ -195,55 +217,53 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 ## Step 4: Instantiate and Connect Stacks in the App
 
 1.  **Open App Entrypoint:** Open the main application file `bin/<your-project-name>.ts`.
-2.  **Modify Code:** Update the file to import your stacks, look up the **pre-deployed VPC using its tag**, and instantiate the stacks, passing the necessary resources via props.
+2.  **Modify Code:** Update the file to import your stacks and instantiate them, passing the necessary resources via props.
     ```typescript
     #!/usr/bin/env node
     import 'source-map-support/register';
     import * as cdk from 'aws-cdk-lib';
     import { CoreStack } from '../lib/core-stack';
     import { ComputeStack } from '../lib/compute-stack';
-    import * as ec2 from 'aws-cdk-lib/aws-ec2'; // Needed for Vpc lookup
+    import { BasicTagger } from '../lib/tagging-aspect'; // Import the aspect
 
     const app = new cdk.App();
 
-    // Define Deployment Environment using variables expected to be set by GitLab CI
-    const deploymentProps = {
-      env: {
-        account: process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID,
-        region: process.env.CDK_DEFAULT_REGION || process.env.AWS_DEFAULT_REGION,
-      },
-    };
+    // --- Determine Target Account and Region ---
+    const targetAccount = app.node.tryGetContext('account') ||
+                          process.env.CDK_DEFAULT_ACCOUNT ||
+                          process.env.AWS_ACCOUNT_ID;
+    const targetRegion = app.node.tryGetContext('region') ||
+                         process.env.CDK_DEFAULT_REGION ||
+                         process.env.AWS_DEFAULT_REGION;
 
     // Validate environment variables
-    if (!deploymentProps.env.region) { throw new Error("Region environment variable not set"); }
-    if (!deploymentProps.env.account) { throw new Error("Account environment variable not set"); }
-    console.log(`Targeting AWS Account: ${deploymentProps.env.account} Region: ${deploymentProps.env.region}`);
+    if (!targetAccount) { throw new Error("Account environment variable not set"); }
+    if (!targetRegion) { throw new Error("Region environment variable not set"); }
+    console.log(`Targeting AWS Account: ${targetAccount} Region: ${targetRegion}`);
 
-    // --- Look up the Pre-Deployed VPC ---
-    // This uses Vpc.fromLookup to find the VPC created by the instructor's CloudFormation template,
-    // identifying it by the 'Name=WorkshopVPC' tag.
-    console.log('Looking up pre-deployed VPC with tag Name=WorkshopVPC...');
-    const vpc = ec2.Vpc.fromLookup(app, 'ImportedVpc', {
-      tags: { Name: 'WorkshopVPC' }, // This tag MUST match the tag on the deployed VPC
-      isDefault: false,
-    });
-    // If the lookup fails, CDK synth/deploy will throw an error.
-    console.log(`Found VPC: ${vpc.vpcId}`);
+    const deploymentProps = {
+      env: { account: targetAccount, region: targetRegion },
+    };
 
     // --- Instantiate Stacks ---
     console.log('Instantiating CoreStack...');
     const coreStack = new CoreStack(app, 'CoreStack', deploymentProps);
 
     console.log('Instantiating ComputeStack...');
+    // VPC lookup is now done inside ComputeStack
     const computeStack = new ComputeStack(app, 'ComputeStack', {
       ...deploymentProps,
-      vpc: vpc, // Pass the looked-up VPC object
-      processingQueue: coreStack.queue, // Pass the queue from CoreStack
+      processingQueue: coreStack.queue,
     });
+    // No need for explicit addDependency here
 
-    // Add Stack Dependency (optional, often inferred)
-    computeStack.addDependency(coreStack);
     console.log('Stacks instantiated.');
+
+    // --- Apply Aspects ---
+    console.log('Applying aspects for tagging...');
+    cdk.Aspects.of(app).add(new BasicTagger('environment', 'dev'));
+    cdk.Aspects.of(app).add(new BasicTagger('project', 'doc-pipeline-workshop'));
+    console.log('Tagging aspects applied.');
     ```
 
 ---
@@ -267,105 +287,148 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
     }
     ```
 3.  **Apply Aspect:** Open `bin/<your-project-name>.ts` again.
-4.  **Add Code:** At the *end* of the file, import and apply the `BasicTagger` aspect.
-    ```typescript
-    // bin/<your-project-name>.ts
-    // ... (previous imports and stack instantiation code) ...
-    import { BasicTagger } from '../lib/tagging-aspect';
-
-    // ... (app, deploymentProps, vpc, coreStack, computeStack instantiation) ...
-
-    // Apply tags globally
-    console.log('Applying aspects for tagging...');
-    cdk.Aspects.of(app).add(new BasicTagger('environment', 'dev'));
-    cdk.Aspects.of(app).add(new BasicTagger('project', 'doc-pipeline-workshop'));
-    console.log('Tagging aspects applied.');
-    ```
+4.  **Add Code:** Ensure the import and `cdk.Aspects.of(app).add(...)` calls are present at the end of the file (as shown in the Step 4 code block).
 
 ---
 
 ## Step 6: Set up GitLab CI/CD (Includes Bootstrap)
 
 1.  **Create `.gitlab-ci.yml`:** In the **root** of your project repository, create/edit the file named `.gitlab-ci.yml`.
-2.  **Add Code:** Paste the following pipeline definition. It includes a stage to run `cdk bootstrap`.
+2.  **Add Code:** Paste the following pipeline definition (using the consistent format from `gitlab_ci_v15_conventional_order`).
     ```yaml
-    # .gitlab-ci.yml
+    # .gitlab-ci.yml (Consistent Conventional Key Order)
 
     stages:
-      - bootstrap    # New stage for CDK bootstrapping
-      - validate     # Quick checks (like AWS connectivity)
-      - build        # Compile code, synthesize CDK template
-      - deploy-dev   # Deploy the application to the 'dev' environment
+      - bootstrap
+      - validate
+      - build
+      - deploy-dev
 
     variables:
       NODE_VERSION: "18"
 
     default:
-      tags: [cdk] # Ensures jobs run on the correct GitLab Runner
+      tags: [cdk]
 
     bootstrap_dev:
       stage: bootstrap
       image: node:${NODE_VERSION}
       tags: [cdk]
-      script:
-        - echo "Bootstrapping Dev environment (Region: ${AWS_DEFAULT_REGION:-check_runner_config})..."
-        - npm install -g aws-cdk # Install CDK CLI
-        # Use environment variables automatically provided by GitLab/Runner for account/region
-        - cdk bootstrap "aws://${AWS_ACCOUNT_ID}/${AWS_DEFAULT_REGION}" --require-approval never
-        - echo "Bootstrap complete for Dev environment."
-      rules:
+      cache: # Setup keys first
+        key:
+          files:
+            - package-lock.json
+        paths:
+          - node_modules/
+        policy: pull
+      # No needs
+      # No dependencies
+      script: | # Script block
+        echo "Installing dependencies for bootstrap job..."
+        npm ci
+        echo "Bootstrapping Dev environment (Region: ${AWS_DEFAULT_REGION:-check_runner_config})..."
+        if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$AWS_DEFAULT_REGION" ]; then
+          echo "Error: AWS_ACCOUNT_ID or AWS_DEFAULT_REGION is not set."
+          exit 1
+        fi
+        npx cdk bootstrap "aws://${AWS_ACCOUNT_ID}/${AWS_DEFAULT_REGION}" \
+          --require-approval never \
+          -c account=${AWS_ACCOUNT_ID} \
+          -c region=${AWS_DEFAULT_REGION}
+        echo "Bootstrap complete for Dev environment."
+      # No artifacts
+      # No environment
+      rules: # Control keys last
         - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
     validate_aws_connection:
       stage: validate
-      image: name: amazon/aws-cli:latest
-             entrypoint: [""]
+      image:
+        name: amazon/aws-cli:latest
+        entrypoint: [""]
       tags: [cdk]
-      script:
-        - echo "Verifying AWS connection using automatically provided GitLab credentials..."
+      # No cache
+      # No needs
+      # No dependencies
+      script: # Script block (kept list format for simple script)
+        - echo "Verifying AWS connection..."
         - aws sts get-caller-identity
-        - echo "AWS connection verified successfully."
-      rules:
+        - echo "AWS connection verified."
+      # No artifacts
+      # No environment
+      rules: # Control keys last
         - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
     build_cdk:
       stage: build
       image: node:${NODE_VERSION}
       tags: [cdk]
-      cache:
-        key: { files: [package-lock.json] }
-        paths: [node_modules/]
-      script:
-        - echo "Installing dependencies using npm ci..."
-        - npm ci
-        - echo "Building TypeScript code..."
-        - npm run build
-        - echo "Synthesizing CloudFormation template..."
-        - npx cdk synth --all
-      artifacts:
+      cache: # Setup keys first
+        key:
+          files:
+            - package-lock.json
+        paths:
+          - node_modules/
+      # No needs
+      # No dependencies
+      script: | # Script block
+        echo "Installing dependencies..."
+        npm ci
+        echo "Building TypeScript code..."
+        npm run build
+        echo "Synthesizing CloudFormation template..."
+        if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$AWS_DEFAULT_REGION" ]; then
+          echo "Error: AWS_ACCOUNT_ID or AWS_DEFAULT_REGION is not set."
+          exit 1
+        fi
+        npx cdk synth --all \
+          -c account=${AWS_ACCOUNT_ID} \
+          -c region=${AWS_DEFAULT_REGION}
+      artifacts: # Post-execution keys
         paths: [cdk.out/]
         expire_in: 1 hour
-      rules:
+      # No environment
+      rules: # Control keys last
         - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
 
     deploy_to_dev:
       stage: deploy-dev
       image: node:${NODE_VERSION}
       tags: [cdk]
-      needs:
-        - job: bootstrap_dev
-          optional: true # Allow pipeline to proceed if bootstrap fails (e.g., already done)
+      cache: # Setup keys first
+        key:
+          files:
+            - package-lock.json
+        paths:
+          - node_modules/
+        policy: pull
+      needs: # Setup keys first
         - job: build_cdk
-      dependencies: [build_cdk]
-      script:
-        - echo "Deploying stacks to Dev environment (Region: ${AWS_DEFAULT_REGION:-check_runner_config})..."
-        - npx cdk deploy --all --require-approval never --outputs-file cdk-outputs.json
-        - echo "Deployment complete."
-      environment: { name: dev }
-      artifacts:
-        paths: [cdk-outputs.json]
+        - job: bootstrap_dev
+          optional: true
+      dependencies: # Setup keys first
+        - build_cdk
+      script: | # Script block
+        echo "Installing dependencies for deploy job..."
+        npm ci
+        echo "Deploying stacks to Dev environment (Region: ${AWS_DEFAULT_REGION:-check_runner_config})..."
+        if [ -z "$AWS_ACCOUNT_ID" ] || [ -z "$AWS_DEFAULT_REGION" ]; then
+          echo "Error: AWS_ACCOUNT_ID or AWS_DEFAULT_REGION is not set."
+          exit 1
+        fi
+        npx cdk deploy --all \
+          --require-approval never \
+          --outputs-file cdk-outputs.json \
+          -c account=${AWS_ACCOUNT_ID} \
+          -c region=${AWS_DEFAULT_REGION}
+        echo "Deployment complete."
+      artifacts: # Post-execution keys
+        paths:
+          - cdk-outputs.json
         expire_in: 1 day
-      rules:
+      environment: # Post-execution keys
+        name: dev
+      rules: # Control keys last
         - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     ```
 
@@ -378,34 +441,35 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
     * **Using VS Code:** Stage, commit, and push your changes.
         ```bash
         git add .
-        git commit -m "Lab 1: Implement Core/Compute stacks and basic CI/CD"
+        git commit -m "Lab 1: Implement Core/Compute stacks and CI/CD"
         git push origin main # Or master
         ```
-
 2.  **Monitor GitLab Pipeline:**
     * Go to your project's `Build -> Pipelines` section. The pipeline should start.
     * Observe the stages: `bootstrap`, `validate`, `build`, `deploy-dev`.
-    * Check job logs, especially for the `bootstrap_dev` and `deploy_to_dev` jobs.
-
+    * Check job logs for success.
 3.  **Check AWS CloudFormation:**
     * Once `deploy_to_dev` succeeds, go to the AWS CloudFormation console.
     * Verify the `CDKToolkit` stack exists (from bootstrap).
-    * Verify the `CoreStack` and `ComputeStack` are in `CREATE_COMPLETE` status.
-
+    * Verify the `CoreStack` and `ComputeStack` are in `CREATE_COMPLETE` or `UPDATE_COMPLETE` status.
 4.  **Verify AWS Resources:**
-    * Check S3, SQS, and EC2 consoles for your bucket, queue, and instance. Note the **Instance ID**.
-
+    * Check S3, SQS, and EC2 consoles for your bucket, queue, and instance. Note the **Instance ID** (it will likely have changed).
 5.  **Test the EC2 Polling Logic:**
-    * **Send Manual SQS Message:** Go to SQS Console -> Your queue -> Send and receive messages -> Enter `{"test": "Hello from console", "source": "manual"}` -> Send message.
-    * **Connect to EC2 Instance:** Go to EC2 Console -> Instances -> Select your instance -> Connect -> **Session Manager** -> Connect.
+    * **Send Manual SQS Message:** Go to SQS Console -> Your queue -> Send and receive messages -> Enter `{"test": "Final test!", "source": "manual"}` -> Send message.
+    * **Connect to EC2 Instance:** Go to EC2 Console -> Instances -> Select your *current* instance -> Connect -> **Session Manager** -> Connect.
     * **Check Logs:** In the EC2 terminal session:
         ```bash
         tail -f /home/ec2-user/sqs_messages.log
         ```
     * **Observe Output:** You should see your test message logged within ~20 seconds.
 
+    * **>>> Understanding Repeated Messages <<<**
+    * You might notice that if you leave `tail -f` running, the same message appears in the log repeatedly every ~30-40 seconds (depending on visibility timeout).
+    * **Why?** Our current script only *receives* messages (`aws sqs receive-message`), it doesn't *delete* them. When SQS delivers a message, it makes it invisible for a "Visibility Timeout". If the message isn't deleted within that time, it becomes visible again for another consumer (or our looping script) to pick up.
+    * **Is this expected?** Yes, for this simple Lab 1 script, this behavior is expected. In later labs involving actual processing, we would add a step to delete the message after successful processing to prevent this.
+
 ---
 
 ## Congratulations!
 
-You have successfully completed Lab 1 using the pre-deployed VPC! You've set up the core application stacks, configured CI/CD including bootstrap, and verified the basic compute logic.
+You have successfully completed Lab 1 using the pre-deployed VPC! You've set up the core application stacks, configured CI/CD including bootstrap, verified the basic compute logic, and understand why messages might repeat in the current setup.
