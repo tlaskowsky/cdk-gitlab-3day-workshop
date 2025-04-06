@@ -137,7 +137,7 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
     import * as custom_resources from 'aws-cdk-lib/custom-resources';
     import * as lambda from 'aws-cdk-lib/aws-lambda';
     import * as lambda_nodejs from 'aws-cdk-lib/aws-lambda-nodejs'; // Ensure this is imported
-    import * as iam from 'aws-cdk-lib/aws-iam';
+    // import * as iam from 'aws-cdk-lib/aws-iam';
     // import * as path from 'path'; // REMOVE THIS if present
     ```
 3.  **Replace Custom Resource Logic:** Inside the constructor, after the DynamoDB table definition, **replace** any previous Custom Resource logic with the following:
