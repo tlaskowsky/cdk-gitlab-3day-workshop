@@ -58,7 +58,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     ```yaml
     # Job to Bootstrap the Prod environment (Run manually when needed)
     bootstrap_prod:
-      stage: bootstrap_prod # Use underscore
+      stage: bootstrap-prod
       image: node:${NODE_VERSION} # Assuming NODE_VERSION is defined in variables
       tags: [cdk] # Assuming 'cdk' runner tag
       cache: # Setup keys first (conventional order)
@@ -123,7 +123,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     ```yaml
     # Job to deploy the CDK application to the Prod environment
     deploy_to_prod:
-      stage: deploy-prod # Use underscore
+      stage: deploy-prod
       image: node:${NODE_VERSION} # Assuming NODE_VERSION is defined in variables
       tags: [cdk] # Assuming 'cdk' runner tag
       cache: # Setup keys first
@@ -199,8 +199,8 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     ```yaml
     # Find the existing deploy-dev job and modify its stage and script block
 
-    deploy-dev:
-      stage: deploy_dev 
+    deploy_dev:
+      stage: deploy-dev 
       # ... (image, tags, cache, needs, dependencies using conventional order from Lab 1 final) ...
       script: | # Keep multi-line format
         echo "Installing dependencies for deploy job..."
