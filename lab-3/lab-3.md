@@ -79,77 +79,89 @@ We'll add a Custom Resource to `CoreStack` that runs an inline Lambda function t
     ```
 3.  **Custom Resource Logic:** Inside the constructor, after the DynamoDB table definition, add the following:
     ```typescript
-      // Inside CoreStack constructor, after table definition
+    // Inside CoreStack constructor, after table definition
+    // --- Custom Resource for DDB Seeding (Using AWS CLI) ---
+    // Define the inline Lambda code (Node.js) to execute AWS CLI
+    const seedingLambdaCode = `
+        const { execSync } = require('child_process'); // Use Node.js built-in module
 
-      // --- Custom Resource for DDB Seeding ---
-      // Define the inline Lambda code (Node.js)
-      // This uses AWS SDK v2 syntax which is often bundled with CDK Custom Resource providers
-      // Getting table name from environment variable passed by Provider
-      const seedingLambdaCode = `
-        const AWS = require('aws-sdk');
-        const ddb = new AWS.DynamoDB.DocumentClient();
         exports.handler = async (event, context) => {
-          console.log('Event:', JSON.stringify(event, null, 2));
-          const tableName = process.env.TABLE_NAME;
-          if (!tableName) { throw new Error('TABLE_NAME environment variable not set'); }
-          // Only run on Create and Update events
-          if (event.RequestType === 'Create' || event.RequestType === 'Update') {
-            const params = {
-              TableName: tableName,
-              Item: {
-                jobId: event.ResourceProperties.SeedJobId || 'seed-job-001', // Use property or default
-                status: 'SEED_DATA',
-                timestamp: new Date().toISOString(),
-                details: 'This item was added by the CDK Custom Resource Seeder.'
-              }
-            };
-            try {
-              console.log('Putting seed item:', params.Item);
-              await ddb.put(params).promise();
-              console.log('Seed item added successfully.');
-            } catch (error) {
-              console.error('Error putting seed item:', error);
-              // Optionally throw error to fail deployment, or just log
-              // throw error;
-            }
-          } else {
-            console.log('RequestType is Delete, skipping seeding.');
-          }
-          // Signal success back to CloudFormation (important!)
-          // Response object structure depends slightly on provider used, but typically needs Status & PhysicalResourceId
-          // For the basic Provider, returning nothing on success is often okay for non-UpdateReplace actions.
-          // Returning a PhysicalResourceId is generally required.
-          return { PhysicalResourceId: event.ResourceProperties.SeedJobId || context.logStreamName };
-        };
-      `;
+        console.log('Event:', JSON.stringify(event, null, 2));
+        const tableName = process.env.TABLE_NAME;
+        const region = process.env.AWS_REGION; // AWS_REGION is automatically available in Lambda env
+        if (!tableName) { throw new Error('TABLE_NAME environment variable not set'); }
 
-      // Create the Custom Resource Provider (manages the Lambda function)
-      const seederProvider = new custom_resources.Provider(this, 'DDBSeedProvider', {
+        const physicalResourceId = event.ResourceProperties.SeedJobId || \`seed-item-\${event.LogicalResourceId}\`;
+
+        // Only run on Create and Update events
+        if (event.RequestType === 'Create' || event.RequestType === 'Update') {
+            const timestamp = new Date().toISOString();
+            const details = 'This item was added by the CDK Custom Resource Seeder (via AWS CLI).';
+            const status = 'SEED_DATA';
+
+            // Construct the item JSON for the AWS CLI --item parameter (DynamoDB JSON format)
+            // Needs careful quoting/escaping for the shell command
+            const itemJson = JSON.stringify({
+            jobId: { S: physicalResourceId }, // Use generated PhysicalResourceId as JobId for seed item
+            timestamp: { S: timestamp },
+            status: { S: status },
+            details: { S: details }
+            });
+
+            // Construct the AWS CLI command
+            // Use single quotes around the JSON to handle potential double quotes inside
+            const command = \`/opt/awscli/aws dynamodb put-item --table-name "\${tableName}" --item '\${itemJson}' --region \${region}\`;
+
+            console.log('Executing command:', command);
+            try {
+            // Execute the command synchronously
+            const execResult = execSync(command, { encoding: 'utf8', stdio: 'pipe' }); // Capture output/error
+            console.log('AWS CLI execution result:', execResult);
+            console.log('Seed item added successfully via AWS CLI.');
+            } catch (error) {
+            console.error('Error executing AWS CLI command:', error.stderr?.toString() || error.message || error);
+            // Throw error to fail the CloudFormation deployment if seeding fails
+            throw new Error(\`Failed to seed DynamoDB table: \${error.stderr?.toString() || error.message || error}\`);
+            }
+        } else {
+            console.log('RequestType is Delete, skipping seeding.');
+        }
+
+        // Return PhysicalResourceId
+        return { PhysicalResourceId: physicalResourceId };
+        };
+    `;
+
+    // Create the Custom Resource Provider (manages the Lambda function)
+    const seederProvider = new custom_resources.Provider(this, 'DDBSeedProvider', {
         onEventHandler: new lambda.Function(this, 'DDBSeedHandler', {
-          runtime: lambda.Runtime.NODEJS_18_X, // Choose appropriate runtime
-          handler: 'index.handler',
-          code: lambda.Code.fromInline(seedingLambdaCode),
-          timeout: cdk.Duration.minutes(1),
-          environment: {
+        runtime: lambda.Runtime.NODEJS_18_X, // Use a supported runtime like Node 18
+        handler: 'index.handler',
+        code: lambda.Code.fromInline(seedingLambdaCode), // Use updated CLI-based code
+        timeout: cdk.Duration.minutes(1),
+        environment: {
             TABLE_NAME: this.table.tableName, // Pass table name to Lambda
-          },
+        },
+        // Ensure the Lambda execution role has permissions to run dynamodb:PutItem
+        // The grantWriteData below handles this.
         }),
         // logRetention: logs.RetentionDays.ONE_WEEK, // Optional: Configure log retention
-      });
+    });
 
-      // Grant the Lambda function permissions to write to the table
-      this.table.grantWriteData(seederProvider.onEventHandler);
+    // Grant the Lambda function permissions to write to the table
+    // This adds the necessary dynamodb:PutItem permission to the Lambda's execution role.
+    this.table.grantWriteData(seederProvider.onEventHandler);
 
-      // Create the Custom Resource itself, triggering the provider
-      new cdk.CustomResource(this, 'DDBSeedResource', {
+    // Create the Custom Resource itself, triggering the provider
+    new cdk.CustomResource(this, 'DDBSeedResource', {
         serviceToken: seederProvider.serviceToken,
         properties: {
-          // You can pass properties to the Lambda here if needed
-          SeedJobId: `seed-item-${this.stackName}`, // Example property
-          // Add a timestamp or random element to ensure resource updates on code change
-          Timestamp: Date.now().toString()
+        // Pass properties to the Lambda if needed (used for PhysicalResourceId here)
+        SeedJobId: `seed-item-${this.stackName}`, // Example property
+        // Add a changing property to ensure the resource updates when code/props change
+        Timestamp: Date.now().toString()
         }
-      });
+    });
     ```
 
 ## Step 4: Update Compute Stack & UserData
