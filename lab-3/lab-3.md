@@ -7,55 +7,51 @@ has_children: true
 
 # Lab 3: AI (Comprehend) + DynamoDB + Custom Resource Seeding
 
+
 ## Goal
 
-Add a DynamoDB table for storing results, update the EC2 instance script to call Amazon Comprehend for sentiment analysis and write results to the table, and implement a Custom Resource to seed the table with initial data during deployment.
+Add a DynamoDB table for storing results, update the EC2 instance script to call Amazon Comprehend and write results to the table, and implement a Custom Resource (using AWS SDK v3 and the `NodejsFunction` construct) to seed the table with initial data during deployment.
 
 ## Prerequisites
 
 * Completion of Lab 2 (Single-Account version). Your project deploys successfully to Dev with prefixing.
-* Local environment configured.
+* Local environment configured (Node, CDK, Git, AWS Creds for Dev).
+* `esbuild` installed locally OR available in your build environment (`npm install -D esbuild` or `yarn add -D esbuild`).
 
 ## Step 1: Add Dependencies
 
-* While CDK v2 bundles most libraries into `aws-cdk-lib`, custom resources often benefit from specific types. Let's ensure necessary types and potentially the SDK v3 client for Lambda (though CDK might bundle v2 for inline) are considered. For now, the core library should suffice for the CDK constructs, and we'll use AWS CLI in the EC2 script. Ensure `aws-cdk-lib` is up-to-date.
-
+1.  **Install AWS SDK v3 Clients:** Run the following command in your local project directory's terminal to install the necessary SDK v3 clients for DynamoDB, which will be used by the seeder Lambda.
     ```bash
-    # Run in your local project directory
-    npm install aws-cdk-lib@latest constructs@latest # Or yarn add ...
-    # Optional: If writing complex inline Lambda needing types
-    # npm install --save-dev @types/aws-lambda
+    npm install @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb
+    # Or using yarn:
+    # yarn add @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb
+    ```
+2.  **Install Lambda Types:** Run the following command to install the type definitions needed for the Lambda handler code.
+    ```bash
+    npm install --save-dev @types/aws-lambda
+    # Or using yarn:
+    # yarn add --dev @types/aws-lambda
+    ```
+3.  **Ensure CDK library is up-to-date:**
+    ```bash
+    npm install aws-cdk-lib@latest constructs@latest
+    # Or yarn add ...
     ```
 
 ## Step 2: Define DynamoDB Table in Core Stack
 
 1.  **Open `lib/core-stack.ts`**.
 2.  **Import DynamoDB module:** Add `import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';` at the top.
-3.  **Define Table Property:** Add a public readonly property for the table within the `CoreStack` class definition:
-
-    ```typescript
-    export class CoreStack extends cdk.Stack {
-      public readonly bucket: s3.Bucket;
-      public readonly queue: sqs.Queue;
-      public readonly table: dynamodb.Table; // <<< ADD THIS LINE
-      // ... constructor ...
-    }
-    ```
-4.  **Create Table:** Inside the constructor, after the SQS queue definition, add the code to create the DynamoDB table. We'll use `jobId` (a string) as the partition key.
-
+3.  **Define Table Property:** Add `public readonly table: dynamodb.Table;` within the `CoreStack` class definition.
+4.  **Create Table:** Inside the constructor, after the SQS queue definition, add the code to create the DynamoDB table.
     ```typescript
       // Inside CoreStack constructor, after SQS queue definition
 
       // --- DynamoDB Table ---
       this.table = new dynamodb.Table(this, 'ProcessingResultsTable', {
-        // Define the primary key (Partition Key only in this case)
         partitionKey: { name: 'jobId', type: dynamodb.AttributeType.STRING },
-        // Use On-Demand (Pay-Per-Request) billing - good for unpredictable workloads/workshops
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-        // Ensure table is deleted when stack is destroyed (for workshop cleanup)
         removalPolicy: cdk.RemovalPolicy.DESTROY,
-        // Optional: Enable Point-in-Time Recovery (good practice for production)
-        // pointInTimeRecovery: true,
       });
 
       // --- Stack Outputs (Add Table Name) ---
@@ -65,249 +61,250 @@ Add a DynamoDB table for storing results, update the EC2 instance script to call
       });
     ```
 
-## Step 3: Implement Custom Resource for Seeding
+## Step 3: Create Lambda Handler for Seeding (SDK v3)
 
-We'll add a Custom Resource to `CoreStack` that runs an inline Lambda function to put a sample item into the table when the stack is created or updated.
-
-1.  **Open `lib/core-stack.ts`**.
-2.  **Add Imports:** Add imports for `custom_resources`, `lambda`, and `iam`.
+1.  **Create Lambda Directory:** In the **root** of your CDK project, create a new directory named `lambda`.
+2.  **Create Handler File:** Inside the `lambda` directory, create a new file named `seed-ddb.ts`.
+3.  **Add Handler Code:** Paste the following TypeScript code into `lambda/seed-ddb.ts`. This uses the AWS SDK v3 syntax and includes error handling.
     ```typescript
-    import * as custom_resources from 'aws-cdk-lib/custom-resources';
-    import * as lambda from 'aws-cdk-lib/aws-lambda';
-    import * as iam from 'aws-cdk-lib/aws-iam';
-    // import * as path from 'path'; // Not needed for inline
-    ```
-3.  **Custom Resource Logic:** Inside the constructor, after the DynamoDB table definition, add the following:
-    ```typescript
-    // Inside CoreStack constructor, after table definition
-    // --- Custom Resource for DDB Seeding (Using AWS CLI) ---
-    // Define the inline Lambda code (Node.js) to execute AWS CLI
-    const seedingLambdaCode = `
-        const { execSync } = require('child_process'); // Use Node.js built-in module
+    // lambda/seed-ddb.ts
+    import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+    import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+    // Import the specific type needed from aws-lambda
+    import type { CloudFormationCustomResourceEvent, Context } from 'aws-lambda';
 
-        exports.handler = async (event, context) => {
-        console.log('Event:', JSON.stringify(event, null, 2));
-        const tableName = process.env.TABLE_NAME;
-        const region = process.env.AWS_REGION; // AWS_REGION is automatically available in Lambda env
-        if (!tableName) { throw new Error('TABLE_NAME environment variable not set'); }
+    // Initialize DDB Document Client with default region from environment
+    const client = new DynamoDBClient({});
+    const ddbDocClient = DynamoDBDocumentClient.from(client);
 
-        const physicalResourceId = event.ResourceProperties.SeedJobId || \`seed-item-\${event.LogicalResourceId}\`;
+    export const handler = async (event: CloudFormationCustomResourceEvent, context: Context) => {
+      console.log('Event:', JSON.stringify(event, null, 2));
+      const tableName = process.env.TABLE_NAME; // Get table name from environment
+      if (!tableName) {
+        throw new Error('TABLE_NAME environment variable not set');
+      }
 
+      // Use SeedJobId from properties or generate one using LogicalResourceId
+      const physicalResourceId = event.ResourceProperties?.SeedJobId || `seed-item-${event.LogicalResourceId}`;
+
+      try {
         // Only run on Create and Update events
         if (event.RequestType === 'Create' || event.RequestType === 'Update') {
-            const timestamp = new Date().toISOString();
-            const details = 'This item was added by the CDK Custom Resource Seeder (via AWS CLI).';
-            const status = 'SEED_DATA';
-
-            // Construct the item JSON for the AWS CLI --item parameter (DynamoDB JSON format)
-            // Needs careful quoting/escaping for the shell command
-            const itemJson = JSON.stringify({
-            jobId: { S: physicalResourceId }, // Use generated PhysicalResourceId as JobId for seed item
-            timestamp: { S: timestamp },
-            status: { S: status },
-            details: { S: details }
-            });
-
-            // Construct the AWS CLI command
-            // Use single quotes around the JSON to handle potential double quotes inside
-            const command = \`aws dynamodb put-item --table-name "\${tableName}" --item '\${itemJson}' --region \${region}\`;
-
-            console.log('Executing command:', command);
-            try {
-            // Execute the command synchronously
-            const execResult = execSync(command, { encoding: 'utf8', stdio: 'pipe' }); // Capture output/error
-            console.log('AWS CLI execution result:', execResult);
-            console.log('Seed item added successfully via AWS CLI.');
-            } catch (error) {
-            console.error('Error executing AWS CLI command:', error.stderr?.toString() || error.message || error);
-            // Throw error to fail the CloudFormation deployment if seeding fails
-            throw new Error(\`Failed to seed DynamoDB table: \${error.stderr?.toString() || error.message || error}\`);
+          const params = {
+            TableName: tableName,
+            Item: {
+              jobId: physicalResourceId, // Use PhysicalResourceId as JobId for seed item
+              status: 'SEED_DATA',
+              timestamp: new Date().toISOString(),
+              details: 'This item was added by the CDK Custom Resource Seeder (SDK v3).'
             }
-        } else {
-            console.log('RequestType is Delete, skipping seeding.');
+          };
+
+          console.log('Putting seed item:', params.Item);
+          await ddbDocClient.send(new PutCommand(params));
+          console.log('Seed item added successfully.');
+
+        } else { // RequestType === 'Delete'
+          console.log('RequestType is Delete, skipping seeding/deletion.');
+          // No action needed on delete for this simple seeder
         }
 
-        // Return PhysicalResourceId
-        return { PhysicalResourceId: physicalResourceId };
-        };
-    `;
+        // Return success response to CloudFormation
+        // PhysicalResourceId should be stable for updates/deletes
+        return { PhysicalResourceId: physicalResourceId, Data: {} };
 
-    // Create the Custom Resource Provider (manages the Lambda function)
-    const seederProvider = new custom_resources.Provider(this, 'DDBSeedProvider', {
-        onEventHandler: new lambda.Function(this, 'DDBSeedHandler', {
-        runtime: lambda.Runtime.NODEJS_18_X, // Use a supported runtime like Node 18
-        handler: 'index.handler',
-        code: lambda.Code.fromInline(seedingLambdaCode), // Use updated CLI-based code
+      } catch (error) {
+        console.error('Error processing event:', error);
+        // Safely access error message and rethrow to fail deployment
+        const errorMessage = (error instanceof Error) ? error.message : String(error);
+        throw new Error(`Failed to seed DynamoDB table: ${errorMessage}`);
+      }
+    };
+    ```
+
+## Step 4: Implement Custom Resource using NodejsFunction
+
+Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler file.
+
+1.  **Open `lib/core-stack.ts`**.
+2.  **Add/Update Imports:** Ensure imports for `custom_resources`, `lambda`, `iam`, and add `lambda_nodejs`. **Remove** the `path` import if it exists.
+    ```typescript
+    import * as cdk from 'aws-cdk-lib';
+    import { Construct } from 'constructs';
+    import * as s3 from 'aws-cdk-lib/aws-s3';
+    import * as sqs from 'aws-cdk-lib/aws-sqs';
+    import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+    import * as custom_resources from 'aws-cdk-lib/custom-resources';
+    import * as lambda from 'aws-cdk-lib/aws-lambda';
+    import * as lambda_nodejs from 'aws-cdk-lib/aws-lambda-nodejs'; // Ensure this is imported
+    import * as iam from 'aws-cdk-lib/aws-iam';
+    // import * as path from 'path'; // REMOVE THIS if present
+    ```
+3.  **Replace Custom Resource Logic:** Inside the constructor, after the DynamoDB table definition, **replace** any previous Custom Resource logic with the following:
+    ```typescript
+      // Inside CoreStack constructor, after table definition
+      // --- Custom Resource for DDB Seeding (Using NodejsFunction) ---
+
+      // Define the NodejsFunction - CDK handles bundling SDK v3 dependencies
+      const seedHandler = new lambda_nodejs.NodejsFunction(this, 'DDBSeedHandler', {
+        runtime: lambda.Runtime.NODEJS_18_X, // Or NODEJS_20_X
+        entry: 'lambda/seed-ddb.ts', // Path relative to project root (where cdk.json is)
+        handler: 'handler', // Function name in the handler file
         timeout: cdk.Duration.minutes(1),
         environment: {
-            TABLE_NAME: this.table.tableName, // Pass table name to Lambda
+          TABLE_NAME: this.table.tableName, // Pass table name to Lambda
         },
-        // Ensure the Lambda execution role has permissions to run dynamodb:PutItem
-        // The grantWriteData below handles this.
-        }),
-        // logRetention: logs.RetentionDays.ONE_WEEK, // Optional: Configure log retention
-    });
+        bundling: { // Optional: Configure bundling options if needed
+          minify: false, // Easier debugging
+        },
+      });
 
-    // Grant the Lambda function permissions to write to the table
-    // This adds the necessary dynamodb:PutItem permission to the Lambda's execution role.
-    this.table.grantWriteData(seederProvider.onEventHandler);
+      // Grant the Lambda function permissions to write to the table
+      this.table.grantWriteData(seedHandler);
 
-    // Create the Custom Resource itself, triggering the provider
-    new cdk.CustomResource(this, 'DDBSeedResource', {
+      // Create the Custom Resource Provider using the NodejsFunction
+      const seederProvider = new custom_resources.Provider(this, 'DDBSeedProvider', {
+        onEventHandler: seedHandler, // Reference the NodejsFunction
+      });
+
+      // Create the Custom Resource itself, triggering the provider
+      new cdk.CustomResource(this, 'DDBSeedResource', {
         serviceToken: seederProvider.serviceToken,
         properties: {
-        // Pass properties to the Lambda if needed (used for PhysicalResourceId here)
-        SeedJobId: `seed-item-${this.stackName}`, // Example property
-        // Add a changing property to ensure the resource updates when code/props change
-        Timestamp: Date.now().toString()
+          // Pass properties to the Lambda if needed (used for PhysicalResourceId here)
+          SeedJobId: `seed-item-${this.stackName}`, // Example property
+          // Add a changing property to ensure the resource updates when code/props change
+          Timestamp: Date.now().toString()
         }
-    });
+      });
     ```
 
-## Step 4: Update Compute Stack & UserData
+## Step 5: Update Compute Stack & UserData
 
 1.  **Open `lib/compute-stack.ts`**.
-2.  **Import DynamoDB:** Add `import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';`
-3.  **Update Props Interface:** Add the table property to `ComputeStackProps`:
+2.  **Verify Imports:** Ensure `dynamodb` and `iam` are imported.
+3.  **Verify Props Interface:** Ensure `table: dynamodb.ITable;` is present.
+4.  **Verify Permissions:** Ensure `props.table.grantWriteData(ec2Role);` and the `comprehend:DetectSentiment` policy statement are present.
+5.  **Update UserData Script:** **Replace** the `pollingScriptTemplate` constant definition with the following **corrected version** that does *not* escape the shell dollar signs (`$`).
     ```typescript
-    export interface ComputeStackProps extends cdk.StackProps {
-      processingQueue: sqs.Queue;
-      table: dynamodb.ITable; // <<< ADD THIS LINE (use ITable interface)
-    }
-    ```
-4.  **Grant Permissions:** Inside the constructor, after granting SQS permissions, grant the EC2 role permissions to write to the DynamoDB table and call Comprehend. You'll need the `iam` import (`import * as iam from 'aws-cdk-lib/aws-iam';`).
-    ```typescript
-      // Inside ComputeStack constructor, after SQS grant
-      // Grant DDB write permissions
-      props.table.grantWriteData(ec2Role);
+      // Inside ComputeStack constructor
 
-      // Grant Comprehend permissions
-      ec2Role.addToPrincipalPolicy(new iam.PolicyStatement({
-        actions: ['comprehend:DetectSentiment'], // Add other actions if needed later
-        resources: ['*'], // Comprehend actions are typically not resource-specific
-      }));
-    ```
-5.  **Modify UserData Script:** Update the `pollingScript` definition to include calls to Comprehend and DynamoDB using the AWS CLI.
-    ```typescript
-        // Inside ComputeStack constructor
-        // Define the script content using a template literal.
-        // Escape '$' for shell variables to prevent TS/linter errors.
-        const pollingScript = `#!/bin/bash
-        echo "Polling SQS Queue: ${props.processingQueue.queueUrl} (Region determined automatically by AWS CLI)"
-        while true; do
-        # Receive message (note: no delete yet!)
-        REC_MSG=\\$(/usr/local/bin/aws sqs receive-message --queue-url ${props.processingQueue.queueUrl} --wait-time-seconds 10 --max-number-of-messages 1)
-        MSG_BODY=\\$(echo \\$REC_MSG | jq -r '.Messages[0].Body') # Extract body
-        MSG_ID=\\$(echo \\$REC_MSG | jq -r '.Messages[0].MessageId') # Extract message ID
+      // Define the script TEMPLATE with PLACEHOLDERS and NO escaped $.
+      const pollingScriptTemplate = `#!/bin/bash
+      echo "Polling SQS Queue: %%QUEUE_URL%% (Region determined automatically by AWS CLI)"
+      # Assign resolved values to shell variables
+      QUEUE_URL="%%QUEUE_URL%%"
+      TABLE_NAME="%%TABLE_NAME%%"
 
-        # Check if a message was received
-        if [ -n "\\$MSG_BODY" ] && [ "\\$MSG_BODY" != "null" ]; then
-            echo "Received message ID: \\$MSG_ID"
-            echo "Body: \\$MSG_BODY"
+      while true; do
+        # Receive message using shell variable $QUEUE_URL
+        REC_MSG=$(aws sqs receive-message --queue-url "$QUEUE_URL" --wait-time-seconds 10 --max-number-of-messages 1)
+        # Use shell variables $REC_MSG etc. (NO backslashes)
+        MSG_BODY=$(echo "$REC_MSG" | jq -r '.Messages[0].Body')
+        MSG_ID=$(echo "$REC_MSG" | jq -r '.Messages[0].MessageId')
 
-            # --- Call Comprehend ---
-            TEXT_TO_ANALYZE="It is raining today in Seattle" # Replace with "\\$MSG_BODY" if body is plain text
-            echo "Running sentiment analysis..."
-            SENTIMENT_RESULT=\\$(aws comprehend detect-sentiment --language-code en --text "\$TEXT_TO_ANALYZE" 2> /home/ec2-user/comprehend_error.log)
-            SENTIMENT=\\$(echo \\$SENTIMENT_RESULT | jq -r '.Sentiment // "ERROR"')
-            SENTIMENT_SCORE_POSITIVE=\\$(echo \\$SENTIMENT_RESULT | jq -r '.SentimentScore.Positive // "0"')
+        # Check if a message was received using shell variable $MSG_BODY
+        if [ -n "$MSG_BODY" ] && [ "$MSG_BODY" != "null" ]; then
+          echo "Received message ID: $MSG_ID"
+          echo "Body: $MSG_BODY"
 
-            echo "Sentiment: \\$SENTIMENT (Positive Score: \\$SENTIMENT_SCORE_POSITIVE)"
+          # --- Call Comprehend ---
+          TEXT_TO_ANALYZE="It is raining today in Seattle" # Replace with "$MSG_BODY" if body is plain text
+          echo "Running sentiment analysis..."
+          SENTIMENT_RESULT=$(aws comprehend detect-sentiment --language-code en --text "$TEXT_TO_ANALYZE" 2> /home/ec2-user/comprehend_error.log)
+          SENTIMENT=$(echo "$SENTIMENT_RESULT" | jq -r '.Sentiment // "ERROR"')
+          SENTIMENT_SCORE_POSITIVE=$(echo "$SENTIMENT_RESULT" | jq -r '.SentimentScore.Positive // "0"')
 
-            # --- Write to DynamoDB ---
-            TABLE_NAME="${props.table.tableName}" # CDK token resolved here
-            JOB_ID="job-\${MSG_ID}" # Use Message ID to create a unique Job ID
-            TIMESTAMP=\\$(date --iso-8601=seconds) # Get current timestamp
+          echo "Sentiment: $SENTIMENT (Positive Score: $SENTIMENT_SCORE_POSITIVE)"
 
-            echo "Writing results to DynamoDB table: \\$TABLE_NAME"
-            # Construct JSON item for put-item using jq
-            ITEM_JSON=\\$(jq -n --arg jobId "\\$JOB_ID" --arg ts "\\$TIMESTAMP" --arg status "PROCESSED" --arg sentiment "\\$SENTIMENT" --arg scorePos "\\$SENTIMENT_SCORE_POSITIVE" --arg msgBody "\\$MSG_BODY" '{
-            "jobId": {"S": \\$jobId},
-            "timestamp": {"S": \\$ts},
-            "status": {"S": \\$status},
-            "sentiment": {"S": \\$sentiment},
-            "sentimentScorePositive": {"N": \\$scorePos},
-            "messageBody": {"S": \\$msgBody}
-            }')
+          # --- Write to DynamoDB ---
+          JOB_ID="job-${MSG_ID}" # Use shell variable $MSG_ID
+          TIMESTAMP=$(date --iso-8601=seconds)
 
-            # Use AWS CLI to put the item
-            aws dynamodb put-item --table-name \\$TABLE_NAME --item "\\$ITEM_JSON"
-            if [ \\$? -eq 0 ]; then
-                echo "Results written to DynamoDB."
-            else
-                echo "ERROR writing to DynamoDB."
-            fi
+          echo "Writing results to DynamoDB table: $TABLE_NAME"
+          # Construct JSON item for put-item using jq and shell variables
+          ITEM_JSON=$(jq -n --arg jobId "$JOB_ID" --arg ts "$TIMESTAMP" --arg status "PROCESSED" --arg sentiment "$SENTIMENT" --arg scorePos "$SENTIMENT_SCORE_POSITIVE" --arg msgBody "$MSG_BODY" '{
+            "jobId": {"S": $jobId},
+            "timestamp": {"S": $ts},
+            "status": {"S": $status},
+            "sentiment": {"S": $sentiment},
+            "sentimentScorePositive": {"N": $scorePos},
+            "messageBody": {"S": $msgBody}
+          }')
 
-            # Append simple confirmation to local log (optional)
-            echo "Processed message ID: \\$MSG_ID at \\$TIMESTAMP" >> /home/ec2-user/sqs_messages.log
+          # Use AWS CLI to put the item using shell variable $TABLE_NAME
+          aws dynamodb put-item --table-name "$TABLE_NAME" --item "$ITEM_JSON"
+          # Check exit status (using $?)
+          if [ $? -eq 0 ]; then
+              echo "Results written to DynamoDB."
+          else
+              echo "ERROR writing to DynamoDB."
+          fi
+
+          # Append simple confirmation to local log (optional)
+          echo "Processed message ID: $MSG_ID at $TIMESTAMP" >> /home/ec2-user/sqs_messages.log
 
         else
-            echo "No message received."
+          echo "No message received."
         fi
 
         # Pause between polls
         sleep 5
-        done`;
+      done`;
 
-      // The rest of the UserData.addCommands block remains the same:
-      // ... (set -ex, trigger log, installs, cat <<'EOF', chmod, chown, run script) ...
+      // Ensure the rest of the UserData.addCommands block uses the heredoc + sed method
+      userData.addCommands(
+          'set -ex',
+          'echo "UserData Update Trigger: $(date)" > /home/ec2-user/userdata_trigger.log',
+          // ... installs ...
+          'echo "Creating polling script template..."',
+          `cat <<'EOF' > /home/ec2-user/poll_sqs.sh.template
+${pollingScriptTemplate}
+EOF`,
+          'echo "Replacing placeholders in script..."',
+          `sed -e "s|%%QUEUE_URL%%|${props.processingQueue.queueUrl}|g" \\`,
+          `    -e "s|%%TABLE_NAME%%|${props.table.tableName}|g" \\`,
+          `    /home/ec2-user/poll_sqs.sh.template > /home/ec2-user/poll_sqs.sh`,
+          'chmod +x /home/ec2-user/poll_sqs.sh',
+          // ... chown/touch ...
+          'echo "Polling script created."',
+          'echo "Starting polling script in background..."',
+          'sudo -u ec2-user bash -c "nohup /home/ec2-user/poll_sqs.sh > /home/ec2-user/poll_sqs.out 2>&1 &"',
+          'echo "UserData script finished."'
+      );
     ```
-    > **Note:** Added basic error handling/defaults for Comprehend/DDB calls. Switched DDB item construction to use `jq` for better JSON safety. Error logging for Comprehend goes to a separate file.
 
-## Step 5: Update App Entry Point
+## Step 6: Update App Entry Point
+
+*(No changes needed in this step compared to the previous version - just ensure it matches)*
 
 1.  **Open `bin/<your-project-name>.ts`**.
-2.  **Pass Table to ComputeStack:** Modify the `ComputeStack` instantiation to pass the `table` object from `CoreStack`.
+2.  **Verify Table Prop:** Ensure `ComputeStack` instantiation passes `table: coreStack.table`.
 
-    ```typescript
-      // Inside bin/app.ts
+## Step 7: Deploy and Verify
 
-      // --- Instantiate Stacks with Prefixed IDs ---
-      console.log('Instantiating CoreStack...');
-      const coreStack = new CoreStack(app, `${prefix}-CoreStack`, deploymentProps);
-
-      console.log('Instantiating ComputeStack...');
-      const computeStack = new ComputeStack(app, `${prefix}-ComputeStack`, {
-        ...deploymentProps,
-        processingQueue: coreStack.queue,
-        table: coreStack.table, // <<< ADD THIS LINE
-      });
-
-      // --- Apply Aspects --- (remains the same)
-      // ...
+1.  **Install Dependencies (if not already done):**
+    ```bash
+    npm install @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb
+    npm install --save-dev @types/aws-lambda
+    npm install --save-dev esbuild # If not installed globally/in CI
     ```
-
-## Step 6: Deploy and Verify
-
-1.  Commit and Push: Save all changes (`lib/core-stack.ts`, `lib/compute-stack.ts`, `bin/app.ts`), commit, and push to GitLab.
+2.  **Commit and Push:** Save all changes (`lib/core-stack.ts`, `lib/compute-stack.ts`, `bin/app.ts`, `lambda/seed-ddb.ts`, `package.json`, `package-lock.json`), commit, and push to GitLab.
     ```bash
     git add .
-    git commit -m "Lab 3: Add DDB, Comprehend, Custom Resource Seeder"
+    git commit -m "Lab 3: Final - Use NodejsFunction for Seeder, sed for UserData"
     git push origin main
     ```
-2.  Monitor Dev Pipeline:*Watch the pipeline execute in GitLab. Ensure all stages pass. The `deploy_dev` stage will update `CoreStack` and `ComputeStack`.
-3.  Check CloudFormation: Verify stack updates completed successfully in the AWS console. Look for the new DynamoDB table and the Lambda function created for the Custom Resource.
-4.  Verify DDB Table & Seed Data:
-    * Go to the DynamoDB console in your Dev region.
-    * Find the table named `${prefix}-CoreStack-ProcessingResultsTable...`.
-    * Click on the table and go to "Explore table items".
-    * You should see at least one item with `jobId` like `seed-item-${prefix}-CoreStack` and `status: SEED_DATA`, created by the Custom Resource.
-5.  Test End-to-End Flow:
-    * Send Manual SQS Message: Go to the SQS console, find your `${prefix}-CoreStack-DocumentProcessingQueue...` queue, and send a test message. The body can be simple text for now (e.g., `{"file": "test.txt", "text": "This is a test document."}`).
-    * Check EC2 Logs (Optional): Connect to the EC2 instance via Session Manager. You can `tail -f /home/ec2-user/sqs_messages.log` to see the "Processed message ID..." confirmation. Check `cat /home/ec2-user/poll_sqs.out` for any errors from the script loop. Check `/home/ec2-user/comprehend_error.log` for Comprehend errors.
-    * Verify DDB Item: Go back to the DynamoDB table items. Refresh the view. You should see a *new* item with a `jobId` like `job-<sqs-message-id>`. Examine the item - it should contain attributes like `timestamp`, `status: PROCESSED`, `sentiment: NEUTRAL` (or similar based on the dummy text), `sentimentScorePositive`, and the `messageBody` you sent.
+3.  **Monitor Dev Pipeline:** Watch the pipeline execute. Check the `build_cdk` job log for `esbuild` output. Ensure all stages pass.
+4.  **Check CloudFormation & DDB Seed Data:** Verify stack updates and check for the seed item in DynamoDB.
+5.  **Test End-to-End Flow:** Send a test SQS message. Check the DynamoDB table again - a new item should appear with `status: PROCESSED` and Comprehend results. Check EC2 logs if needed.
 
-## tep 7: Clean Up Resources
+**Step 8: Clean Up Resources**
 
-* Run the `cdk destroy` command for the Dev environment as described in Lab 2, Step 5, using the correct prefix and context flags. This will delete the stacks, including the DynamoDB table (due to `removalPolicy: DESTROY`).
-    ```bash
-    # Destroy Dev Environment
-    # Replace YOUR_FULL_DEV_PREFIX, AWS_ACCOUNT_ID (Dev), and AWS_DEFAULT_REGION (Dev) below.
-    npx cdk destroy --all -c prefix=YOUR_FULL_DEV_PREFIX -c environment=dev -c account=AWS_ACCOUNT_ID -c region=AWS_DEFAULT_REGION
-    ```
+* Run `cdk destroy` for the Dev environment as described previously.
 
 ---
 
 ## Congratulations!
 
-You have successfully integrated DynamoDB for persistence, added AI analysis using Amazon Comprehend, and implemented a CDK Custom Resource to automate database seeding during deployment!
+You have successfully integrated DynamoDB, added Comprehend analysis, and implemented a robust CDK Custom Resource using the `NodejsFunction` construct and AWS SDK v3 for database seeding!
