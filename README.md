@@ -1,7 +1,7 @@
 ---
 layout: default
 title: AWS CDK with TypeScript & GitLab CI/CD Workshop
-nav_order: 0
+nav_order: 1
 has_children: true
 ---
 
