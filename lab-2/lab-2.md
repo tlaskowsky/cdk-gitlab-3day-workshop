@@ -49,9 +49,9 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
       - bootstrap      # Bootstraps Dev
       - validate       # Validates Dev connection
       - build          # Builds CDK app
-      - deploy_dev     # Deploys to Dev
-      - bootstrap_prod # ADD THIS STAGE
-      - deploy_prod    # ADD THIS STAGE
+      - deploy-dev     # Deploys to Dev
+      - bootstrap-prod # ADD THIS STAGE
+      - deploy-prod    # ADD THIS STAGE
     ```
 
 3.  **Add `bootstrap_prod` Job:** Add the following **new job definition** to the *end* of the `.gitlab-ci.yml` file. Note the conventional key order.
@@ -123,7 +123,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     ```yaml
     # Job to deploy the CDK application to the Prod environment
     deploy_to_prod:
-      stage: deploy_prod # Use underscore
+      stage: deploy-prod # Use underscore
       image: node:${NODE_VERSION} # Assuming NODE_VERSION is defined in variables
       tags: [cdk] # Assuming 'cdk' runner tag
       cache: # Setup keys first
@@ -195,12 +195,12 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     > * Modify the `STUDENT_PREFIX` line to use a suitable unique identifier (e.g., `$GITLAB_USER_LOGIN` or `$STUDENT_ID` variable).
     > * Check if `jq` needs to be installed.
 
-5.  **Modify `deploy_dev` Job:** Find the existing `deploy_dev` job. Ensure its `stage:` key is `deploy_dev` (with underscore). **Modify its `script:` block** to add the context flags (`-c prefix=... -c environment=dev`).
+5.  **Modify `deploy-dev` Job:** Find the existing `deploy-dev` job. Ensure its `stage:` key is `deploy-dev`. **Modify its `script:` block** to add the context flags (`-c prefix=... -c environment=dev`).
     ```yaml
-    # Find the existing deploy_dev job and modify its stage and script block
+    # Find the existing deploy-dev job and modify its stage and script block
 
-    deploy_dev:
-      stage: deploy_dev # Ensure stage name uses underscore
+    deploy-dev:
+      stage: deploy_dev 
       # ... (image, tags, cache, needs, dependencies using conventional order from Lab 1 final) ...
       script: | # Keep multi-line format
         echo "Installing dependencies for deploy job..."
