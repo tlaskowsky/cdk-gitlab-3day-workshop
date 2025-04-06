@@ -5,7 +5,7 @@ nav_order: 31
 has_children: true
 ---
 
-# Lab 3: AI (Comprehend) + DynamoDB + Custom Resource Seeding**
+# Lab 3: AI (Comprehend) + DynamoDB + Custom Resource Seeding
 
 ## Goal
 
@@ -16,7 +16,7 @@ Add a DynamoDB table for storing results, update the EC2 instance script to call
 * Completion of Lab 2 (Single-Account version). Your project deploys successfully to Dev with prefixing.
 * Local environment configured.
 
-## Step 1: Add Dependencies**
+## Step 1: Add Dependencies
 
 * While CDK v2 bundles most libraries into `aws-cdk-lib`, custom resources often benefit from specific types. Let's ensure necessary types and potentially the SDK v3 client for Lambda (though CDK might bundle v2 for inline) are considered. For now, the core library should suffice for the CDK constructs, and we'll use AWS CLI in the EC2 script. Ensure `aws-cdk-lib` is up-to-date.
 
@@ -27,7 +27,7 @@ Add a DynamoDB table for storing results, update the EC2 instance script to call
     # npm install --save-dev @types/aws-lambda
     ```
 
-## Step 2: Define DynamoDB Table in Core Stack**
+## Step 2: Define DynamoDB Table in Core Stack
 
 1.  **Open `lib/core-stack.ts`**.
 2.  **Import DynamoDB module:** Add `import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';` at the top.
@@ -65,19 +65,19 @@ Add a DynamoDB table for storing results, update the EC2 instance script to call
       });
     ```
 
-## Step 3: Implement Custom Resource for Seeding**
+## Step 3: Implement Custom Resource for Seeding
 
 We'll add a Custom Resource to `CoreStack` that runs an inline Lambda function to put a sample item into the table when the stack is created or updated.
 
-1.  Open `lib/core-stack.ts`.
-2.  Add Imports:** Add imports for `custom_resources`, `lambda`, and `iam`.
+1.  **Open `lib/core-stack.ts`**.
+2.  **Add Imports:** Add imports for `custom_resources`, `lambda`, and `iam`.
     ```typescript
     import * as custom_resources from 'aws-cdk-lib/custom-resources';
     import * as lambda from 'aws-cdk-lib/aws-lambda';
     import * as iam from 'aws-cdk-lib/aws-iam';
     // import * as path from 'path'; // Not needed for inline
     ```
-3.  dd Custom Resource Logic:** Inside the constructor, after the DynamoDB table definition, add the following:
+3.  **Custom Resource Logic:** Inside the constructor, after the DynamoDB table definition, add the following:
     ```typescript
       // Inside CoreStack constructor, after table definition
 
@@ -154,16 +154,16 @@ We'll add a Custom Resource to `CoreStack` that runs an inline Lambda function t
 
 ## Step 4: Update Compute Stack & UserData**
 
-1.  Open `lib/compute-stack.ts`.
-2.  Import DynamoDB:** Add `import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';`
-3.  Update Props Interface:** Add the table property to `ComputeStackProps`:
+1.  **Open `lib/compute-stack.ts`**.
+2.  **Import DynamoDB:** Add `import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';`
+3.  **Update Props Interface:** Add the table property to `ComputeStackProps`:
     ```typescript
     export interface ComputeStackProps extends cdk.StackProps {
       processingQueue: sqs.Queue;
       table: dynamodb.ITable; // <<< ADD THIS LINE (use ITable interface)
     }
     ```
-4.  Grant Permissions:** Inside the constructor, after granting SQS permissions, grant the EC2 role permissions to write to the DynamoDB table and call Comprehend. You'll need the `iam` import (`import * as iam from 'aws-cdk-lib/aws-iam';`).
+4.  **Grant Permissions:** Inside the constructor, after granting SQS permissions, grant the EC2 role permissions to write to the DynamoDB table and call Comprehend. You'll need the `iam` import (`import * as iam from 'aws-cdk-lib/aws-iam';`).
     ```typescript
       // Inside ComputeStack constructor, after SQS grant
       // Grant DDB write permissions
@@ -175,7 +175,7 @@ We'll add a Custom Resource to `CoreStack` that runs an inline Lambda function t
         resources: ['*'], // Comprehend actions are typically not resource-specific
       }));
     ```
-5.  Modify UserData Script:** Update the `pollingScript` definition to include calls to Comprehend and DynamoDB using the AWS CLI.
+5.  **Modify UserData Script:** Update the `pollingScript` definition to include calls to Comprehend and DynamoDB using the AWS CLI.
     ```typescript
       // Inside ComputeStack constructor
 
@@ -251,8 +251,8 @@ We'll add a Custom Resource to `CoreStack` that runs an inline Lambda function t
 
 ## Step 5: Update App Entry Point
 
-1.  Open `bin/<your-project-name>.ts`.
-2.  Pass Table to ComputeStack:** Modify the `ComputeStack` instantiation to pass the `table` object from `CoreStack`.
+1.  **Open `bin/<your-project-name>.ts`**.
+2.  **Pass Table to ComputeStack:** Modify the `ComputeStack` instantiation to pass the `table` object from `CoreStack`.
 
     ```typescript
       // Inside bin/app.ts
