@@ -333,20 +333,66 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
 
 ## Step 5: Clean Up Resources
 
-* **Importance:** If you manually triggered the `deploy_to_prod` job and successfully deployed resources to the Prod account, you **should clean them up** using `cdk destroy` targeting the Prod environment to avoid unnecessary costs after the lab/workshop. If you only deployed to Dev (or skipped the manual Prod deploy), you only need to clean up Dev.
-* **Method:** Run `cdk destroy` from your **local terminal**, targeting each environment separately using the correct context flags and ensuring your local AWS credentials match the target environment.
+# --- Destroy Dev Environment ---
 
-    ```bash
-    # Destroy Dev (ensure local AWS creds/profile point to Dev account/region)
-    # Replace stuXX, DEV_ACCOUNT_ID, DEV_REGION with your values
-    npx cdk destroy --all -c prefix=stuXX-dev -c environment=dev -c account=DEV_ACCOUNT_ID -c region=DEV_REGION
+# 1. Ensure your local terminal is using AWS credentials for the DEV account.
+#    (This is likely your default profile configured with 'aws configure').
+#    You can verify using: aws sts get-caller-identity --profile YOUR_DEV_PROFILE_NAME (or omit profile for default)
 
-    # Destroy Prod (ONLY IF YOU DEPLOYED TO PROD)
-    # Ensure local AWS creds/profile point to Prod account/region OR configure local role assumption
-    # Replace stuXX, PROD_ACCOUNT_ID, PROD_REGION with your values
-    npx cdk destroy --all -c prefix=stuXX-prod -c environment=prod -c account=PROD_ACCOUNT_ID -c region=PROD_REGION
-    ```
-* Confirm deletion when prompted by CDK. Monitor stack deletion in the CloudFormation console for both accounts if applicable. Remember this does not delete the VPC or the CDKToolkit stacks.
+# 2. Run cdk destroy, providing the DEV context via -c flags.
+#    Replace YOUR_ACTUAL_DEV_PREFIX, AWS_ACCOUNT_ID (Dev), and AWS_DEFAULT_REGION (Dev) below.
+npx cdk destroy --all -c prefix=YOUR_ACTUAL_DEV_PREFIX -c environment=dev -c account=AWS_ACCOUNT_ID -c region=AWS_DEFAULT_REGION
+
+```bash
+# --- Destroy Prod Environment (ONLY IF YOU DEPLOYED TO PROD) ---
+
+# To destroy resources in Prod, you need to run 'cdk destroy' using credentials
+# that have permission in the Prod account (specifically, the CDKDeployRole).
+# Since Prod credentials aren't configured locally with 'aws configure', assume the Prod role using your Dev credentials:
+
+# 1. Define Variables (replace placeholders):
+#    Get the Prod Role ARN from your instructor.
+#    Set your configured Dev AWS profile name (often 'default').
+PROD_ROLE_ARN="<CDKDeployRole_ARN_Prod>" # Replace with actual ARN
+DEV_PROFILE="default"                 # Replace if your Dev profile has a different name
+
+# 2. Assume the Prod Role using Dev Credentials:
+#    This command uses your Dev profile to call STS and get temporary Prod credentials.
+#    Ensure 'jq' is installed locally (`brew install jq` or equivalent).
+echo "Attempting to assume Prod role: ${PROD_ROLE_ARN}..."
+CREDENTIALS=$(aws sts assume-role --role-arn "${PROD_ROLE_ARN}" --role-session-name "LocalCleanupSession-${USER:-unknown}" --profile "${DEV_PROFILE}" --query 'Credentials' --output json)
+
+# 3. Check if Assume Role Succeeded and Export Temporary Credentials:
+if [ -z "$CREDENTIALS" ] || [ "$CREDENTIALS" == "null" ]; then
+  echo "Failed to assume role! Check ARN, Dev profile, and trust policy."
+else
+  export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | jq -r '.AccessKeyId')
+  export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | jq -r '.SecretAccessKey')
+  export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | jq -r '.SessionToken')
+
+  if [ "$AWS_ACCESS_KEY_ID" == "null" ]; then
+     echo "Failed to parse credentials! Is jq installed and CREDENTIALS variable correct?"
+  else
+     echo "Successfully assumed Prod role. Temporary credentials exported."
+
+     # 4. Verify Assumed Identity (Optional but recommended):
+     echo "Verifying identity (should show assumed role):"
+     aws sts get-caller-identity
+
+     # 5. Run cdk destroy for Prod, providing the PROD context via -c flags.
+     #    Replace YOUR_ACTUAL_PROD_PREFIX, PROD_ACCOUNT_ID, and PROD_REGION below.
+     echo "Running cdk destroy for Prod..."
+     npx cdk destroy --all -c prefix=YOUR_ACTUAL_PROD_PREFIX -c environment=prod -c account=PROD_ACCOUNT_ID -c region=PROD_REGION
+
+     # 6. IMPORTANT: Unset the temporary credentials after you are done!
+     echo "Unsetting temporary credentials..."
+     unset AWS_ACCESS_KEY_ID
+     unset AWS_SECRET_ACCESS_KEY
+     unset AWS_SESSION_TOKEN
+     echo "Prod cleanup attempt finished."
+  fi
+fi
+
 
 ---
 
