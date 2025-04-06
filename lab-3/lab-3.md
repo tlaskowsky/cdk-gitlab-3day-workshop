@@ -152,7 +152,7 @@ We'll add a Custom Resource to `CoreStack` that runs an inline Lambda function t
       });
     ```
 
-## Step 4: Update Compute Stack & UserData**
+## Step 4: Update Compute Stack & UserData
 
 1.  **Open `lib/compute-stack.ts`**.
 2.  **Import DynamoDB:** Add `import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';`
