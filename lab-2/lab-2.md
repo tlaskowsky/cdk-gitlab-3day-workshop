@@ -42,7 +42,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
 
 1.  **Open `.gitlab-ci.yml`:** Open your verified starting file from Step 0.
 
-2.  **Add Prod Stages:** Find the `stages:` list near the top and **add** the new stages for production using **underscores** for consistency:
+2.  **Add Prod Stages:** Find the `stages:` list near the top and **add** the new stages for production:
     
     ```yaml
     stages:
