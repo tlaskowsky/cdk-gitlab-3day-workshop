@@ -5,32 +5,35 @@ nav_order: 41
 has_children: true
 ---
 
-# Lab 4: Event Pipeline Complete (Textract + Real File Ingestion)**
+# Lab 4: Event Pipeline Complete (Textract + Real File Ingestion)
 
 ## Goal
- Configure the S3 bucket to trigger the SQS queue on object creation. Update the EC2 instance script to process these events by parsing the S3 event, calling Textract using the S3 object reference, analyzing extracted text with Comprehend, storing results in DynamoDB, and deleting the processed message from SQS.
+
+ Configure the S3 bucket to trigger the SQS queue on object creation. Refactor the EC2 instance script into an external template file and update the UserData logic to use `sed` for substitution (solving previous compilation issues). Implement the full S3 -> SQS -> EC2 -> Textract -> Comprehend -> DynamoDB workflow, including deleting processed messages from SQS.
 
 ## Prerequisites
 
 * Completion of Lab 3. Your project deploys successfully to Dev with prefixing, DDB table, Comprehend permissions, and the Custom Resource Seeder. The code should match the final state of Lab 3.
 * Local environment configured (Node, CDK, Git, AWS Creds for Dev).
 * A sample PDF file containing some text available on your local machine for testing uploads.
-* The `scripts` directory exists in your project root, containing `poll_sqs.sh.template` (from Lab 3's final state).
-* The `lambda` directory exists in your project root, containing `seed-ddb.ts` (from Lab 3).
+* `@types/node` installed (`npm install --save-dev @types/node`).
+* `esbuild` installed (`npm install -D esbuild`).
+
+---
 
 ## Step 1: Add S3 Event Notification to SQS
 
-Modify the `CoreStack` to configure the input S3 bucket to send notifications to the SQS queue when new PDF objects are created.
+Modify `lib/core-stack.ts` to configure the S3 bucket -> SQS trigger.
 
 1.  **Open `lib/core-stack.ts`**.
-2.  **Import necessary modules:** Ensure `s3n` is imported.
+2.  **Import necessary modules:** Add imports for `s3_notifications`.
     ```typescript
     import * as s3n from 'aws-cdk-lib/aws-s3-notifications';
     // Ensure s3 and sqs imports also exist
     import * as s3 from 'aws-cdk-lib/aws-s3';
     import * as sqs from 'aws-cdk-lib/aws-sqs';
     ```
-3.  **Add Event Notification:** Inside the `constructor`, after the `this.bucket` definition, **ensure** the following code exists (it might already be there if you started adding Lab 4 previously):
+3.  **Add Event Notification:** Inside the `constructor`, after the `this.bucket` definition, add the following code block:
     ```typescript
       // Inside CoreStack constructor, after this.bucket = new s3.Bucket(...)
 
@@ -40,55 +43,54 @@ Modify the `CoreStack` to configure the input S3 bucket to send notifications to
         new s3n.SqsDestination(this.queue),
         { suffix: '.pdf' } // Filter for PDF files
       );
-      // Note: The SqsDestination construct automatically adds the necessary
-      // permissions to the queue policy allowing S3 to send messages.
     ```
+
+---
 
 ## Step 2: Update EC2 Role Permissions
 
-Modify the `ComputeStack` to grant the EC2 instance role the additional permissions needed for Textract and S3 access.
+Modify `lib/compute-stack.ts` to add S3 read and Textract permissions to the EC2 instance role.
 
 1.  **Open `lib/compute-stack.ts`**.
-2.  **Import S3 module:** Ensure `s3` and `iam` imports are present.
+2.  **Add S3 Import:** Ensure the S3 import exists:
     ```typescript
     import * as s3 from 'aws-cdk-lib/aws-s3';
+    // Ensure iam import also exists
     import * as iam from 'aws-cdk-lib/aws-iam';
     ```
-3.  **Update Props Interface:** Ensure the `ComputeStackProps` interface includes `inputBucket`.
+3.  **Update Props Interface:** Add the `inputBucket` property:
     ```typescript
     export interface ComputeStackProps extends cdk.StackProps {
       processingQueue: sqs.Queue;
       table: dynamodb.ITable;
-      inputBucket: s3.IBucket; // <<< Ensure this line is present
+      inputBucket: s3.IBucket; // <<< ADD THIS LINE
     }
     ```
-4.  **Grant Permissions:** Inside the `constructor`, find the `ec2Role` definition. Ensure the grants/policy statements for S3 Read and Textract Detect are present (add them if missing).
+4.  **Grant Permissions:** Inside the `constructor`, find the `ec2Role` definition. Add the following permission grants *after* the existing grants (for SQS, DDB, Comprehend):
     ```typescript
-      // Inside ComputeStack constructor, after existing grants for SQS/DDB/Comprehend
+      // Inside ComputeStack constructor, after existing grants...
 
       // Grant S3 Read permissions on the input bucket passed via props
-      props.inputBucket.grantRead(ec2Role); // <<< Ensure this line is present
-
-      // Note: The necessary sqs:DeleteMessage permission is already granted by
-      // props.processingQueue.grantConsumeMessages(ec2Role).
+      props.inputBucket.grantRead(ec2Role); // <<< ADD THIS LINE
 
       // Grant Textract permissions
-      ec2Role.addToPrincipalPolicy(new iam.PolicyStatement({ // <<< Ensure this block is present
+      ec2Role.addToPrincipalPolicy(new iam.PolicyStatement({ // <<< ADD THIS BLOCK
         actions: ['textract:DetectDocumentText'],
         resources: ['*'],
       }));
     ```
 
+---
+
 ## Step 3: Update App Entry Point
 
-Ensure `bin/app.ts` passes the input bucket from `CoreStack` to `ComputeStack`.
+Modify `bin/app.ts` to pass the `inputBucket` from `CoreStack` to `ComputeStack`.
 
 1.  **Open `bin/<your-project-name>.ts`**.
-2.  **Verify Bucket Prop:** Check the `ComputeStack` instantiation. Ensure it includes `inputBucket: coreStack.bucket`.
+2.  **Pass Bucket Prop:** Find the `ComputeStack` instantiation and add the `inputBucket` property:
     ```typescript
       // Inside bin/app.ts
-
-      // ... (CoreStack instantiation) ...
+      // ... (CoreStack instantiation remains the same) ...
       const coreStack = new CoreStack(app, `${prefix}-CoreStack`, deploymentProps);
 
       // ...
@@ -96,17 +98,20 @@ Ensure `bin/app.ts` passes the input bucket from `CoreStack` to `ComputeStack`.
         ...deploymentProps,
         processingQueue: coreStack.queue,
         table: coreStack.table,
-        inputBucket: coreStack.bucket, // <<< Ensure this line is present
+        inputBucket: coreStack.bucket, // <<< ADD THIS LINE
       });
-      // ... (Aspects) ...
+      // ... (Aspects remain the same) ...
     ```
 
-## Step 4: Update EC2 UserData Script Template
+---
 
-Modify the **content** of the `scripts/poll_sqs.sh.template` file to handle the full Lab 4 workflow.
+## Step 4: Refactor EC2 UserData Script to External File
 
-1.  **Open `scripts/poll_sqs.sh.template`**.
-2.  **Replace Content:** Replace the *entire content* of this file with the following Bash script:
+To resolve the TypeScript compilation errors caused by embedding complex Bash scripts in template literals, we will move the script to an external file and update `compute-stack.ts` to read it.
+
+1.  **Create `scripts` Directory:** In the **root** of your project (alongside `bin` and `lib`), create a new directory named `scripts`.
+2.  **Create Template File:** Inside the new `scripts` directory, create a file named `poll_sqs.sh.template`.
+3.  **Add Bash Script Content:** Paste the following Bash script into `scripts/poll_sqs.sh.template`. This script uses `%%PLACEHOLDERS%%` which will be replaced by CDK/sed later.
     ```bash
     #!/bin/bash
     echo "Polling SQS Queue: %%QUEUE_URL%% (Region determined automatically by AWS CLI)"
@@ -144,8 +149,6 @@ Modify the **content** of the `scripts/poll_sqs.sh.template` file to handle the 
         echo "Processing file: s3://$S3_BUCKET/$S3_KEY"
         JOB_ID="job-${MSG_ID}"
         TIMESTAMP=$(date --iso-8601=seconds)
-
-        # --- Download S3 Object --- (REMOVED - Using S3Object for Textract)
 
         # --- Call Textract ---
         echo "Calling Textract DetectDocumentText using S3 Object..."
@@ -206,25 +209,89 @@ Modify the **content** of the `scripts/poll_sqs.sh.template` file to handle the 
       sleep 5
     done
     ```
-3.  **Verify `lib/compute-stack.ts`:** Ensure your `lib/compute-stack.ts` still uses the `fs.readFileSync` and `sed` approach in the `userData.addCommands` block to process this template file correctly. It should match the final version from Lab 3 (e.g., `compute_stack_v9_read_file`). Ensure the `touch`/`chown` command for `textract_error.log` is present in `addCommands`.
+4.  **Update `lib/compute-stack.ts`:** Open this file.
+    * **Add Imports:** Add `fs` and `path` imports at the top:
+      ```typescript
+      import * as fs from 'fs';
+      import * as path from 'path';
+      ```
+    * **Replace UserData Logic:** Find the `// --- EC2 UserData ---` comment inside the `constructor`. **Replace** the entire block from that comment down to (but not including) the `// --- EC2 Instance Definition ---` comment with the following code:
+      ```typescript
+        // --- EC2 UserData (Read script from file, use sed) ---
+        const userData = ec2.UserData.forLinux();
+
+        // *** Read script template content from external file ***
+        const scriptTemplatePath = 'scripts/poll_sqs.sh.template'; // Use path relative to project root
+        console.log(`Reading UserData script from: ${scriptTemplatePath}`); // Add log
+        let pollingScriptTemplate: string;
+        try {
+           pollingScriptTemplate = fs.readFileSync(scriptTemplatePath, 'utf8');
+        } catch (err) {
+            console.error(`Error reading script template file at ${scriptTemplatePath}:`, err);
+            throw new Error(`Could not read script template file: ${scriptTemplatePath}`);
+        }
+
+        // Add commands to UserData using the template + sed approach
+        userData.addCommands(
+            'set -ex', // Exit on error, print commands
+            'echo "UserData Update Trigger: $(date)" > /home/ec2-user/userdata_trigger.log',
+            // Install tools
+            'sudo yum update -y',
+            'sudo yum install -y unzip jq',
+            'echo "Installing AWS CLI v2..."',
+            'curl "[https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip](https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip)" -o "awscliv2.zip"',
+            'unzip awscliv2.zip',
+            'sudo ./aws/install',
+            'rm -rf aws awscliv2.zip',
+            'echo "AWS CLI installed successfully."',
+
+            // Write the script TEMPLATE using a heredoc
+            'echo "Creating polling script template..."',
+            // Write the content read from the file into the heredoc
+            `cat <<'EOF' > /home/ec2-user/poll_sqs.sh.template
+${pollingScriptTemplate}
+EOF`, // Use the pollingScriptTemplate variable read from file
+
+            // Use sed to replace placeholders with actual values from CDK tokens
+            'echo "Replacing placeholders in script..."',
+            `sed -e "s|%%QUEUE_URL%%|${props.processingQueue.queueUrl}|g" \\`,
+            `    -e "s|%%TABLE_NAME%%|${props.table.tableName}|g" \\`,
+            `    /home/ec2-user/poll_sqs.sh.template > /home/ec2-user/poll_sqs.sh`,
+
+            // Set permissions and ownership
+            'chmod +x /home/ec2-user/poll_sqs.sh',
+            'chown ec2-user:ec2-user /home/ec2-user/poll_sqs.sh',
+            'touch /home/ec2-user/sqs_messages.log && chown ec2-user:ec2-user /home/ec2-user/sqs_messages.log',
+            'touch /home/ec2-user/poll_sqs.out && chown ec2-user:ec2-user /home/ec2-user/poll_sqs.out',
+            'touch /home/ec2-user/userdata_trigger.log && chown ec2-user:ec2-user /home/ec2-user/userdata_trigger.log',
+            'touch /home/ec2-user/comprehend_error.log && chown ec2-user:ec2-user /home/ec2-user/comprehend_error.log',
+            'touch /home/ec2-user/textract_error.log && chown ec2-user:ec2-user /home/ec2-user/textract_error.log', // Ensure textract log file is handled
+            'echo "Polling script created."',
+
+            // Run the script as ec2-user
+            'echo "Starting polling script in background..."',
+            'sudo -u ec2-user bash -c "nohup /home/ec2-user/poll_sqs.sh > /home/ec2-user/poll_sqs.out 2>&1 &"',
+            'echo "UserData script finished."'
+        );
+      ```
+      > **Note:** Ensure the `EC2 Instance Definition` block *after* this uses `userData: userData,` correctly.
+
+---
 
 ## Step 5: Deploy and Verify
 
-1.  **Commit and Push:** Save all changes (`lib/core-stack.ts`, `lib/compute-stack.ts`, `bin/app.ts`, `scripts/poll_sqs.sh.template`), commit, and push.
+1.  **Commit and Push:** Save all changes (`lib/core-stack.ts`, `lib/compute-stack.ts`, `bin/app.ts`, **`scripts/poll_sqs.sh.template`**), commit, and push. **Make sure to `git add scripts/poll_sqs.sh.template`!**
     ```bash
     git add .
-    git commit -m "Lab 4: Add Textract, S3 Event Trigger, SQS Delete"
+    git commit -m "Lab 4: Refactor UserData script to external file"
     git push origin main
     ```
 2.  **Monitor Dev Pipeline:** Watch the pipeline deploy the changes.
-3.  **Verify CloudFormation:** Check `CoreStack` update (S3 Notification) and `ComputeStack` update (IAM Role, UserData).
-4.  **Test:**
-    * Go to the S3 console for your input bucket (e.g., `stuXX-dev-corestack-documentinputbucket...`).
-    * Upload a sample **PDF file** containing some text into the bucket (ensure the suffix matches your filter, e.g., `.pdf`).
-5.  **Verify Results:**
-    * **SQS:** Check the queue in the SQS console. The message count should briefly increase and then decrease back to 0 quickly.
-    * **DynamoDB:** Go to your DynamoDB table (`stuXX-dev-corestack-processingresultstable...`). Refresh the items. Look for a new item corresponding to your uploaded file (check `s3Bucket` and `s3Key`). It should have `status: PROCESSED`, `sentiment` data based on the *actual extracted text*, and an `extractedText` attribute.
-    * **EC2 Logs (If needed):** Connect via Session Manager. Check `/home/ec2-user/sqs_messages.log` (should show one "Successfully processed..." entry per file). Check `/home/ec2-user/poll_sqs.out`, `/home/ec2-user/textract_error.log`, `/home/ec2-user/comprehend_error.log` for any runtime errors.
+3.  **Verify CloudFormation:** Check `CoreStack` and `ComputeStack` updates.
+4.  **Test:** Upload a sample **PDF file** to the S3 input bucket.
+5.  **Verify Results:** Check SQS (message processed/deleted), DynamoDB (new item with extracted text/sentiment), and EC2 logs if needed.
+
+---
 
 ## Step 6: Clean Up Resources
 
@@ -234,4 +301,4 @@ Modify the **content** of the `scripts/poll_sqs.sh.template` file to handle the 
 
 ## Congratulations!
 
-You now have a complete, event-driven document processing pipeline! Files uploaded to S3 automatically trigger processing via SQS, Textract extracts the text, Comprehend analyzes it, and the results are stored in DynamoDB. Processed messages are also correctly deleted from the queue.
+You now have a complete, event-driven document processing pipeline, and you've refactored the EC2 script generation for better stability!
