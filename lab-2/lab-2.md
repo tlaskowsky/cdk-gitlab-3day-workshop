@@ -117,7 +117,6 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     > **Action Required:**
     > * Replace `<CDKDeployRole_ARN>` with the actual ARN provided by your instructor.
     > * Ensure `PROD_ACCOUNT_ID` and `PROD_REGION` are configured as **CI/CD variables** in your GitLab project settings (Settings -> CI/CD -> Variables). Mask these variables if possible.
-    > * Modify the `STUDENT_PREFIX` line to use a suitable unique identifier (e.g., `$GITLAB_USER_LOGIN` or `$STUDENT_ID` variable).
     > * Check/add `jq` install if needed.
 
 4.  **Add `deploy_prod` Job:** Add the following **new job definition** to the *end* of the `.gitlab-ci.yml` file. Note the conventional key order and manual trigger.
