@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Lab 1 Hands-on Instructions
+title: Lab 2 Hands-on Instructions
 nav_order: 21
 has_children: true
 ---
