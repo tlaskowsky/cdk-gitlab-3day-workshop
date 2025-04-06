@@ -1,3 +1,9 @@
+---
+layout: default
+title: Lab 1 Hands-on Instructions
+nav_order: 21
+has_children: true
+---
 # Lab 2: Cross-Account CI/CD + Resource Prefixing**
 
 ## Goal
