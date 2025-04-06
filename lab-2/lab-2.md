@@ -117,6 +117,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     > **Action Required:**
     > * Replace `<CDKDeployRole_ARN>` with the actual ARN provided by your instructor.
     > * Ensure `PROD_ACCOUNT_ID` and `PROD_REGION` are configured as **CI/CD variables** in your GitLab project settings (Settings -> CI/CD -> Variables). Mask these variables if possible.
+    * Modify the STUDENT_PREFIX line to use a suitable unique identifier (e.g $GITLAB_USER_LOGIN or $STUDENT_ID variable).
     > * Check/add `jq` install if needed.
 
 4.  **Add `deploy_prod` Job:** Add the following **new job definition** to the *end* of the `.gitlab-ci.yml` file. Note the conventional key order and manual trigger.
@@ -195,7 +196,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     > * Modify the `STUDENT_PREFIX` line to use a suitable unique identifier (e.g., `$GITLAB_USER_LOGIN` or `$STUDENT_ID` variable).
     > * Check if `jq` needs to be installed.
 
-5.  **Modify `deploy-dev` Job:** Find the existing `deploy-dev` job. Ensure its `stage:` key is `deploy-dev`. **Modify its `script:` block** to add the context flags (`-c prefix=... -c environment=dev`).
+5.  **Modify `deploy_dev` Job:** Find the existing `deploy_dev` job. Ensure its `stage:` key is `deploy-dev`. **Modify its `script:` block** to add the context flags (`-c prefix=... -c environment=dev`).
     ```yaml
     # Find the existing deploy-dev job and modify its stage and script block
 
