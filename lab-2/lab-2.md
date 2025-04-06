@@ -333,36 +333,45 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
 
 ## Step 5: Clean Up Resources
 
-# --- Destroy Dev Environment ---
+### --- Destroy Dev Environment ---
 
-# 1. Ensure your local terminal is using AWS credentials for the DEV account.
-#    (This is likely your default profile configured with 'aws configure').
-#    You can verify using: aws sts get-caller-identity --profile YOUR_DEV_PROFILE_NAME (or omit profile for default)
+1. Ensure your local terminal is using AWS credentials for the DEV account.
+  (This is likely your default profile configured with 'aws configure').
+   You can verify using: aws sts get-caller-identity --profile YOUR_DEV_PROFILE_NAME (or omit profile for default)
 
-# 2. Run cdk destroy, providing the DEV context via -c flags.
-#    Replace YOUR_ACTUAL_DEV_PREFIX, AWS_ACCOUNT_ID (Dev), and AWS_DEFAULT_REGION (Dev) below.
+2. Run cdk destroy, providing the DEV context via -c flags.
+   Replace YOUR_ACTUAL_DEV_PREFIX, AWS_ACCOUNT_ID (Dev), and AWS_DEFAULT_REGION (Dev) below.
+```bash
 npx cdk destroy --all -c prefix=YOUR_ACTUAL_DEV_PREFIX -c environment=dev -c account=AWS_ACCOUNT_ID -c region=AWS_DEFAULT_REGION
+```
+
+### --- Destroy Prod Environment (ONLY IF YOU DEPLOYED TO PROD) ---
+
+1. To destroy resources in Prod, you need to run 'cdk destroy' using credentials
+  that have permission in the Prod account (specifically, the CDKDeployRole).
+  Since Prod credentials aren't configured locally with 'aws configure', assume the Prod role using your Dev credentials:
+
+2. Define Variables (replace placeholders):
+   Get the Prod Role ARN from your instructor.
+   Set your configured Dev AWS profile name (often 'default').
 
 ```bash
-# --- Destroy Prod Environment (ONLY IF YOU DEPLOYED TO PROD) ---
-
-# To destroy resources in Prod, you need to run 'cdk destroy' using credentials
-# that have permission in the Prod account (specifically, the CDKDeployRole).
-# Since Prod credentials aren't configured locally with 'aws configure', assume the Prod role using your Dev credentials:
-
-# 1. Define Variables (replace placeholders):
-#    Get the Prod Role ARN from your instructor.
-#    Set your configured Dev AWS profile name (often 'default').
 PROD_ROLE_ARN="<CDKDeployRole_ARN_Prod>" # Replace with actual ARN
 DEV_PROFILE="default"                 # Replace if your Dev profile has a different name
+```
 
-# 2. Assume the Prod Role using Dev Credentials:
-#    This command uses your Dev profile to call STS and get temporary Prod credentials.
-#    Ensure 'jq' is installed locally (`brew install jq` or equivalent).
+3. Assume the Prod Role using Dev Credentials:
+   This command uses your Dev profile to call STS and get temporary Prod credentials.
+   Ensure 'jq' is installed locally (`brew install jq` or equivalent).
+
+```bash   
 echo "Attempting to assume Prod role: ${PROD_ROLE_ARN}..."
 CREDENTIALS=$(aws sts assume-role --role-arn "${PROD_ROLE_ARN}" --role-session-name "LocalCleanupSession-${USER:-unknown}" --profile "${DEV_PROFILE}" --query 'Credentials' --output json)
+```
 
-# 3. Check if Assume Role Succeeded and Export Temporary Credentials:
+4. Check if Assume Role Succeeded and Export Temporary Credentials:
+
+```bash 
 if [ -z "$CREDENTIALS" ] || [ "$CREDENTIALS" == "null" ]; then
   echo "Failed to assume role! Check ARN, Dev profile, and trust policy."
 else
@@ -392,6 +401,7 @@ else
      echo "Prod cleanup attempt finished."
   fi
 fi
+```
 
 
 ---
