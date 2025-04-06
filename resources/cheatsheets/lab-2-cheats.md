@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Lab 1 Cheatsheet
+title: Lab 2 Cheatsheet
 parent: Cheatsheets
 grand_parent: Resources
 nav_order: 2
