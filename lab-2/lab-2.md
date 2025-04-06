@@ -336,13 +336,15 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
 ### --- Destroy Dev Environment ---
 
 1. Ensure your local terminal is using AWS credentials for the DEV account.
-  (This is likely your default profile configured with 'aws configure').
+   (This is likely your default profile configured with 'aws configure').
    You can verify using: aws sts get-caller-identity --profile YOUR_DEV_PROFILE_NAME (or omit profile for default)
 
-2. Run cdk destroy, providing the DEV context via -c flags.
-   Replace YOUR_ACTUAL_DEV_PREFIX, AWS_ACCOUNT_ID (Dev), and AWS_DEFAULT_REGION (Dev) below.
+2. Run cdk destroy, providing the FULL DEV PREFIX used during deployment via the '-c prefix' flag.
+   Also provide environment, account, and region context.
+   Replace YOUR_FULL_DEV_PREFIX (e.g., yourlogin-dev), AWS_ACCOUNT_ID (Dev), and AWS_DEFAULT_REGION (Dev) below.
+
 ```bash
-npx cdk destroy --all -c prefix=YOUR_ACTUAL_DEV_PREFIX -c environment=dev -c account=AWS_ACCOUNT_ID -c region=AWS_DEFAULT_REGION
+npx cdk destroy --all -c prefix=YOUR_FULL_DEV_PREFIX -c environment=dev -c account=AWS_ACCOUNT_ID -c region=AWS_DEFAULT_REGION
 ```
 
 ### --- Destroy Prod Environment (ONLY IF YOU DEPLOYED TO PROD) ---
@@ -409,3 +411,4 @@ fi
 ## Congratulations!
 
 You have successfully configured a multi-stage GitLab CI/CD pipeline with cross-account deployment to a Prod environment, including a manual approval step. You have also implemented resource prefixing using CDK context to ensure environment isolation and prevent naming collisions.
+
