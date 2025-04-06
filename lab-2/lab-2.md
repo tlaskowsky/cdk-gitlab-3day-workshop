@@ -357,10 +357,10 @@ Since Prod credentials aren't configured locally with 'aws configure', assume th
    Get the Prod Role ARN from your instructor.
    Set your configured Dev AWS profile name (often 'default').
 
-  ```bash
-  PROD_ROLE_ARN="<CDKDeployRole_ARN_Prod>" 
-  DEV_PROFILE="default"                
-  ```
+    ```bash
+    PROD_ROLE_ARN="<CDKDeployRole_ARN_Prod>" 
+    DEV_PROFILE="default"                
+    ```
 
 2. Assume the Prod Role using Dev Credentials:
    This command uses your Dev profile to call STS and get temporary Prod credentials.    Ensure 'jq' is installed locally (`brew install jq` or equivalent).
@@ -374,56 +374,56 @@ Since Prod credentials aren't configured locally with 'aws configure', assume th
    Run the command below. It should output JSON text containing keys.
    If it's empty or shows 'null', the assume-role failed. Check your ARN, Dev profile name, and the role's trust policy in AWS.
 
-  ```bash
-  echo $CREDENTIALS
-  ```
+    ```bash
+    echo $CREDENTIALS
+    ```
 
 4. Export Temporary Credentials (ONLY if Step 3 showed valid JSON):
    Ensure 'jq' is installed locally (`brew install jq` or `sudo apt-get install jq` or equivalent).
    Run these commands one by one:
 
-  ```bash
-  export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | jq -r '.AccessKeyId')
-  export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | jq -r '.SecretAccessKey')
-  export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | jq -r '.SessionToken')
-  ```
+    ```bash
+    export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | jq -r '.AccessKeyId')
+    export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | jq -r '.SecretAccessKey')
+    export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | jq -r '.SessionToken')
+    ```
 
 5. Manually Check if Credentials Parsed Correctly:
    Run the command below. It should output the Access Key ID.
     If it's empty or shows 'null', the export failed. Check if jq is installed and if $CREDENTIALS had valid JSON.
 
-  ```bash
-  echo $AWS_ACCESS_KEY_ID
-  ```
+    ```bash
+    echo $AWS_ACCESS_KEY_ID
+    ```
 
 6. Verify Assumed Identity (Optional but recommended, run only if Step 5 worked):
    This command should now show the AssumedRole ARN in the output.
 
-  ```bash
-  echo "Verifying identity (should show assumed role):"
-  aws sts get-caller-identity
-  ```
+    ```bash
+    echo "Verifying identity (should show assumed role):"
+    aws sts get-caller-identity
+    ```
 
 7. Run cdk destroy for Prod (Run only if Step 5 & 6 worked):
    Provide the FULL PROD PREFIX used during deployment via the '-c prefix' flag.
    Also provide environment, account, and region context.
    Replace YOUR_FULL_PROD_PREFIX (e.g., yourlogin-prod), PROD_ACCOUNT_ID, and PROD_REGION below.
 
-  ```bash
-  echo "Running cdk destroy for Prod..."
-  npx cdk destroy --all -c prefix=YOUR_FULL_PROD_PREFIX -c environment=prod -c account=PROD_ACCOUNT_ID -c region=PROD_REGION
-  ```
+    ```bash
+    echo "Running cdk destroy for Prod..."
+    npx cdk destroy --all -c prefix=YOUR_FULL_PROD_PREFIX -c environment=prod -c account=PROD_ACCOUNT_ID -c region=PROD_REGION
+    ```
 
 8. IMPORTANT: Unset the temporary credentials after 'cdk destroy' finishes!
    Run these commands one by one:
 
-  ```bash
-  echo "Unsetting temporary credentials..."
-  unset AWS_ACCESS_KEY_ID
-  unset AWS_SECRET_ACCESS_KEY
-  unset AWS_SESSION_TOKEN
-  echo "Prod cleanup attempt finished."
-  ```
+    ```bash
+    echo "Unsetting temporary credentials..."
+    unset AWS_ACCESS_KEY_ID
+    unset AWS_SECRET_ACCESS_KEY
+    unset AWS_SESSION_TOKEN
+    echo "Prod cleanup attempt finished."
+    ```
 
 
 
