@@ -14,7 +14,7 @@ nav_exclude: true  # Many Jekyll themes use this
 
 Configure the S3 bucket to trigger the SQS queue on object creation. Update the EC2 instance script to process these events by downloading the file from S3, extracting text using Textract, analyzing sentiment with Comprehend, storing results in DynamoDB, and deleting the processed message from SQS.
 
-##Prerequisites
+## Prerequisites
 
 * Completion of Lab 3. Your project deploys successfully to Dev with prefixing, DDB table, Comprehend permissions, and the Custom Resource Seeder.
 * Local environment configured.
