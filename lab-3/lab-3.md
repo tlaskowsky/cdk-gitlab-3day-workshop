@@ -110,7 +110,7 @@ We'll add a Custom Resource to `CoreStack` that runs an inline Lambda function t
 
             // Construct the AWS CLI command
             // Use single quotes around the JSON to handle potential double quotes inside
-            const command = \`/opt/awscli/aws dynamodb put-item --table-name "\${tableName}" --item '\${itemJson}' --region \${region}\`;
+            const command = \`aws dynamodb put-item --table-name "\${tableName}" --item '\${itemJson}' --region \${region}\`;
 
             console.log('Executing command:', command);
             try {
