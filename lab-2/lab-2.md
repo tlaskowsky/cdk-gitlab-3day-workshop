@@ -199,7 +199,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     ```yaml
     # Find the existing deploy-dev job and modify its stage and script block
 
-    deploy_dev:
+    deploy_to_dev:
       stage: deploy-dev 
       # ... (image, tags, cache, needs, dependencies using conventional order from Lab 1 final) ...
       script: | # Keep multi-line format

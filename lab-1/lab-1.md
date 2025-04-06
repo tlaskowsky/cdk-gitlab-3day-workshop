@@ -301,7 +301,7 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 ## Step 6: Set up GitLab CI/CD (Includes Bootstrap)
 
 1.  **Create `.gitlab-ci.yml`:** In the **root** of your project repository, create/edit the file named `.gitlab-ci.yml`.
-2.  **Add Code:** Paste the following pipeline definition (using the consistent format from `gitlab_ci_v15_conventional_order`).
+2.  **Add Code:** Paste the following pipeline definition.
     ```yaml
     # .gitlab-ci.yml (Consistent Conventional Key Order)
 
