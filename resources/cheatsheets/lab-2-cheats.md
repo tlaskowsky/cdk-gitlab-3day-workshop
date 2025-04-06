@@ -10,24 +10,34 @@ nav_order: 2
 
 This covers common issues when setting up the cross-account deployment pipeline in Lab 2.
 
-## 1. Prod jobs (`bootstrap_prod`, `deploy_to_prod`) fail with `aws: command not found`.
+## 1. Assume Role Command Not Avaiable on Image Error
+* **Problem:** Prod jobs (`bootstrap_prod`, `deploy_to_prod`) fail with `aws: command not found`.
     * **Diagnosis:** The job is likely running using a Docker image (e.g., `node:XX`) that does not contain the AWS CLI v2 executable, which is required for the `aws sts assume-role` command. Check the job log to confirm which image was actually used.
     * **Solution:** Ensure the `image:` specified for the `bootstrap_prod` and `deploy_to_prod` jobs in `.gitlab-ci.yml` points to an image containing both Node.js/npm AND AWS CLI v2 (e.g., `public.ecr.aws/sam/build-nodejs18.x:latest`).
 
-## 2.  Prod jobs fail with `Failed to assume role!` or similar permission errors during the `aws sts assume-role` command.
+## 2. Can Not Assume Role Error
+* **Problem:** Prod jobs fail with `Failed to assume role!` or similar permission errors during the `aws sts assume-role` command.
     * **Diagnosis:** Several possible causes: Incorrect `ROLE_ARN` placeholder value used; incorrect `PROD_ACCOUNT_ID` or `PROD_REGION` GitLab CI/CD variables set; Trust Policy on the `CDKDeployRole` in Prod doesn't allow assumption from the Dev/CI role/user; Dev/CI role/user lacks `sts:AssumeRole` permission.
     * **Solution:** Verify the `ROLE_ARN` in the script. Verify the `PROD_ACCOUNT_ID`, `PROD_REGION` variables in GitLab CI/CD settings. Check the Trust Policy on the `CDKDeployRole` in the Prod AWS account. Check IAM permissions for the GitLab runner's role/user in the Dev/CI account.
 
-## 3.  Prod jobs fail with `Failed to parse credentials!` or errors related to `jq: command not found`.
+## 3. Can Not Parse Credentials Error
+* **Problem:** Prod jobs fail with `Failed to parse credentials!` or errors related to `jq: command not found`.
     * **Diagnosis:** The `jq` command-line JSON processor, used to extract temporary credentials from the `assume-role` output, is not available in the Docker image being used, OR the `assume-role` command failed before `jq` ran.
     * **Solution:** If `jq` is missing, add an install command (e.g., `# apt-get update && apt-get install -y jq || apk add --no-cache jq`) to the job's `script:`. If assume-role failed, fix that first. (Note: The recommended `sam/build-nodejs` image includes `jq`).
 
-## 4.  `cdk bootstrap` or `cdk deploy` fails in Prod jobs *after* successfully assuming the role.
+## 4. Role Does Not Have Permission Error
+* **Problem:** `cdk bootstrap` or `cdk deploy` fails in Prod jobs *after* successfully assuming the role.
     * **Diagnosis 1:** The assumed `CDKDeployRole` in the Prod account lacks sufficient IAM permissions (CloudFormation, S3, IAM, SQS, EC2, etc.).
     * **Solution 1:** Review and update the permissions policy attached to the `CDKDeployRole` in the Prod AWS account's IAM console.
     * **Diagnosis 2:** The CDK code fails during synthesis or deployment, potentially during `Vpc.fromLookup` (e.g., error "Could not find VPC...", "Context provider failed...").
     * **Solution 2:** Ensure the prerequisite VPC (tagged `Name=WorkshopVPC`) **exists in the target Prod account/region** *before* running the Prod deployment jobs. Verify the VPC was created correctly (e.g., using the provided CloudFormation template) and that it has the exact tags used in the CDK code's `Vpc.fromLookup` call (`Name=WorkshopVPC`).
 
-## 5.  Resources deployed to Dev or Prod do not have the correct stack name prefixes (e.g., `stuXX-dev-CoreStack`) or tags (`environment: dev`).
+## 5. Wrong Prefixes on Resources Error
+* **Problem:** Resources deployed to Dev or Prod do not have the correct stack name prefixes (e.g., `stuXX-dev-CoreStack`) or tags (`environment: dev`).
     * **Diagnosis:** Context flags (`-c prefix=...`, `-c environment=...`) might be missing or incorrect in `.gitlab-ci.yml` deploy commands, OR `bin/app.ts` code not reading/using context correctly, OR prefix definition logic (`STUDENT_PREFIX`) in CI script is faulty.
     * **Solution:** Verify `-c` flags in CI jobs. Verify `tryGetContext` calls and usage in `bin/app.ts`. Verify prefix variable logic in CI script. Check default values in `bin/app.ts` for local execution.
+
+## 6. Coult Not Find VPC Error
+* **Problem:** Pipeline fails during `build_cdk` (synth) or `deploy_prod` stage with errors like `Context provider failed...`, `Could not find VPC...`, or `Expected exactly one VPC... found 0`.
+    * **Diagnosis:** The `Vpc.fromLookup` call in `lib/compute-stack.ts` could not find a VPC tagged exactly `Name=WorkshopVPC` in the target Prod account and region specified for the deployment.
+    * **Solution:** Verify with the instructor or via the AWS console that the prerequisite VPC exists in the Prod account/region and has the correct `Name` tag applied. Ensure the correct Prod account ID and region (`PROD_ACCOUNT_ID`, `PROD_REGION`) are being passed to the CDK command via GitLab CI/CD variables and used in the `-c` flags or picked up correctly by the CDK app.
