@@ -59,7 +59,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     # Job to Bootstrap the Prod environment (Run manually when needed)
     bootstrap_prod:
       stage: bootstrap-prod
-      image: node:${NODE_VERSION} # Assuming NODE_VERSION is defined in variables
+      image: image: public.ecr.aws/sam/build-nodejs18.x:latest
       tags: [cdk] # Assuming 'cdk' runner tag
       cache: # Setup keys first (conventional order)
         key:
