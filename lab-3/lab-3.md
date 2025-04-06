@@ -177,67 +177,60 @@ We'll add a Custom Resource to `CoreStack` that runs an inline Lambda function t
     ```
 5.  **Modify UserData Script:** Update the `pollingScript` definition to include calls to Comprehend and DynamoDB using the AWS CLI.
     ```typescript
-      // Inside ComputeStack constructor
-
-      // Define the script content using a template literal.
-      const pollingScript = `#!/bin/bash
+        // Inside ComputeStack constructor
+        // Define the script content using a template literal.
+        // Escape '$' for shell variables to prevent TS/linter errors.
+        const pollingScript = `#!/bin/bash
         echo "Polling SQS Queue: ${props.processingQueue.queueUrl} (Region determined automatically by AWS CLI)"
         while true; do
         # Receive message (note: no delete yet!)
-        REC_MSG=$(/usr/local/bin/aws sqs receive-message --queue-url ${props.processingQueue.queueUrl} --wait-time-seconds 10 --max-number-of-messages 1)
-        MSG_BODY=$(echo $REC_MSG | jq -r '.Messages[0].Body') # Extract body
-        MSG_ID=$(echo $REC_MSG | jq -r '.Messages[0].MessageId') # Extract message ID
+        REC_MSG=\\$(/usr/local/bin/aws sqs receive-message --queue-url ${props.processingQueue.queueUrl} --wait-time-seconds 10 --max-number-of-messages 1)
+        MSG_BODY=\\$(echo \\$REC_MSG | jq -r '.Messages[0].Body') # Extract body
+        MSG_ID=\\$(echo \\$REC_MSG | jq -r '.Messages[0].MessageId') # Extract message ID
 
         # Check if a message was received
-        if [ -n "$MSG_BODY" ] && [ "$MSG_BODY" != "null" ]; then
-            echo "Received message ID: $MSG_ID"
-            echo "Body: $MSG_BODY"
+        if [ -n "\\$MSG_BODY" ] && [ "\\$MSG_BODY" != "null" ]; then
+            echo "Received message ID: \\$MSG_ID"
+            echo "Body: \\$MSG_BODY"
 
             # --- Call Comprehend ---
-            # Use dummy text for now, replace with extracted text later (from S3/Textract)
-            # Max 5000 bytes for DetectSentiment. Ensure text is UTF-8.
-            TEXT_TO_ANALYZE="It is raining today in Seattle" # Replace with "$MSG_BODY" if body is plain text
-            # Need to handle potential quotes/special chars in TEXT_TO_ANALYZE if using MSG_BODY directly
+            TEXT_TO_ANALYZE="It is raining today in Seattle" # Replace with "\\$MSG_BODY" if body is plain text
             echo "Running sentiment analysis..."
-            # Use command substitution and ensure errors are handled or logged
-            SENTIMENT_RESULT=$(aws comprehend detect-sentiment --language-code en --text "$TEXT_TO_ANALYZE" 2> /home/ec2-user/comprehend_error.log)
-            SENTIMENT=$(echo $SENTIMENT_RESULT | jq -r '.Sentiment // "ERROR"') # Default to ERROR if parsing fails
-            SENTIMENT_SCORE_POSITIVE=$(echo $SENTIMENT_RESULT | jq -r '.SentimentScore.Positive // "0"') # Default to 0
+            SENTIMENT_RESULT=\\$(aws comprehend detect-sentiment --language-code en --text "\$TEXT_TO_ANALYZE" 2> /home/ec2-user/comprehend_error.log)
+            SENTIMENT=\\$(echo \\$SENTIMENT_RESULT | jq -r '.Sentiment // "ERROR"')
+            SENTIMENT_SCORE_POSITIVE=\\$(echo \\$SENTIMENT_RESULT | jq -r '.SentimentScore.Positive // "0"')
 
-            echo "Sentiment: $SENTIMENT (Positive Score: $SENTIMENT_SCORE_POSITIVE)"
+            echo "Sentiment: \\$SENTIMENT (Positive Score: \\$SENTIMENT_SCORE_POSITIVE)"
 
             # --- Write to DynamoDB ---
             TABLE_NAME="${props.table.tableName}" # CDK token resolved here
-            JOB_ID="job-${MSG_ID}" # Use Message ID to create a unique Job ID
-            TIMESTAMP=$(date --iso-8601=seconds) # Get current timestamp
+            JOB_ID="job-\${MSG_ID}" # Use Message ID to create a unique Job ID
+            TIMESTAMP=\\$(date --iso-8601=seconds) # Get current timestamp
 
-            echo "Writing results to DynamoDB table: $TABLE_NAME"
-            # Construct JSON item for put-item. Use variables defined above.
-            # Ensure proper JSON formatting and escaping if needed, especially for text body
-            # Using jq to construct the JSON safely
-            ITEM_JSON=$(jq -n --arg jobId "$JOB_ID" --arg ts "$TIMESTAMP" --arg status "PROCESSED" --arg sentiment "$SENTIMENT" --arg scorePos "$SENTIMENT_SCORE_POSITIVE" --arg msgBody "$MSG_BODY" '{
-            "jobId": {"S": $jobId},
-            "timestamp": {"S": $ts},
-            "status": {"S": $status},
-            "sentiment": {"S": $sentiment},
-            "sentimentScorePositive": {"N": $scorePos},
-            "messageBody": {"S": $msgBody}
+            echo "Writing results to DynamoDB table: \\$TABLE_NAME"
+            # Construct JSON item for put-item using jq
+            ITEM_JSON=\\$(jq -n --arg jobId "\\$JOB_ID" --arg ts "\\$TIMESTAMP" --arg status "PROCESSED" --arg sentiment "\\$SENTIMENT" --arg scorePos "\\$SENTIMENT_SCORE_POSITIVE" --arg msgBody "\\$MSG_BODY" '{
+            "jobId": {"S": \\$jobId},
+            "timestamp": {"S": \\$ts},
+            "status": {"S": \\$status},
+            "sentiment": {"S": \\$sentiment},
+            "sentimentScorePositive": {"N": \\$scorePos},
+            "messageBody": {"S": \\$msgBody}
             }')
 
-            # Use AWS CLI to put the item, check for errors
-            aws dynamodb put-item --table-name $TABLE_NAME --item "$ITEM_JSON"
-            if [ $? -eq 0 ]; then
+            # Use AWS CLI to put the item
+            aws dynamodb put-item --table-name \\$TABLE_NAME --item "\\$ITEM_JSON"
+            if [ \\$? -eq 0 ]; then
                 echo "Results written to DynamoDB."
             else
                 echo "ERROR writing to DynamoDB."
             fi
 
             # Append simple confirmation to local log (optional)
-            echo "Processed message ID: $MSG_ID at $TIMESTAMP" >> /home/ec2-user/sqs_messages.log
+            echo "Processed message ID: \\$MSG_ID at \\$TIMESTAMP" >> /home/ec2-user/sqs_messages.log
 
         else
             echo "No message received."
-            # If no message, loop continues after sleep
         fi
 
         # Pause between polls
