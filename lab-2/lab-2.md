@@ -354,12 +354,12 @@ npx cdk destroy --all -c prefix=YOUR_FULL_DEV_PREFIX -c environment=dev -c accou
   Since Prod credentials aren't configured locally with 'aws configure', assume the Prod role using your Dev credentials:
 
 2. Define Variables (replace placeholders):
-   Get the Prod Role ARN from your instructor.
+   Use the Prod Role ARN that you got for Lab 2.
    Set your configured Dev AWS profile name (often 'default').
 
 ```bash
 PROD_ROLE_ARN="<CDKDeployRole_ARN_Prod>" # Replace with actual ARN
-DEV_PROFILE="default"                 # Replace if your Dev profile has a different name
+DEV_PROFILE="default"                    # Replace if your Dev profile has a different name
 ```
 
 3. Assume the Prod Role using Dev Credentials:
