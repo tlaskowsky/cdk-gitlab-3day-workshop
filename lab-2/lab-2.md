@@ -23,18 +23,17 @@ has_children: true
 
 Before making changes for Lab 2, let's ensure your key files match the final working state from Lab 1 after troubleshooting.
 
-1.  **Check `.gitlab-ci.yml`:** Your file should look like the version from `gitlab_ci_v15_conventional_order` (provided previously in chat or Canvas). Key features: conventional key order, `script: |` for main jobs, `npm ci` in relevant jobs, `if` checks and `-c` flags included.
-    > **Note:** If your file doesn't match, please update it now using the content from `gitlab_ci_v15_conventional_order` before proceeding.
+1.  **Check `.gitlab-ci.yml`:** Your file should look like the version from the end of Lab 1. Key features: conventional key order, `script: |` for main jobs, `npm ci` in relevant jobs, `if` checks and `-c` flags included.
+    > **Note:** If your file doesn't match, please update it now using the content from the end of Lab 1 before proceeding.
 
-2.  **Check `bin/<your-project-name>.ts`:** Your app entry point should look like the version from `cdk_app_v4_no_dep` (provided previously in chat or Canvas). Key features: Reads context/env vars for account/region, instantiates stacks *without* doing VPC lookup here, applies aspects.
-    > **Note:** If your file doesn't match, please update it now using the content from `cdk_app_v4_no_dep` before proceeding.
+2.  **Check `bin/<your-project-name>.ts`:** Your app entry point should look like the version from the end of Lab 1. Key features: Reads context/env vars for account/region, instantiates stacks *without* doing VPC lookup here, applies aspects.
+    > **Note:** If your file doesn't match, please update it now using the content from the end of Lab 1 before proceeding.
 
-3.  **Check `lib/compute-stack.ts`:** Your compute stack should look like the version from `compute_stack_v6_force_replace` (provided previously in chat or Canvas, incorporating the heredoc script write and quoted echo). Key features: Performs `Vpc.fromLookup` inside constructor, uses heredoc to create `poll_sqs.sh` with embedded queue URL and quoted `echo`, forces instance replacement via logical ID.
-    > **Note:** If your file doesn't match, please update it now using the content from `compute_stack_v6_force_replace` before proceeding.
+3.  **Check `lib/compute-stack.ts`:** Your compute stack should look like the version from the end of Lab 1. Key features: Performs `Vpc.fromLookup` inside constructor, uses heredoc to create `poll_sqs.sh` with embedded queue URL and quoted `echo`, forces instance replacement via logical ID.
+    > **Note:** If your file doesn't match, please update it now using the content from the end of Lab 1 before proceeding.
 
 **Step 1: Understand the Cross-Account Strategy**
 
-*(This section remains the same - explains AssumeRole concept)*
 * **Goal:** Deploy the same CDK code to a separate Prod AWS account for isolation and safety.
 * **Mechanism:** Your GitLab runner (using its existing Dev credentials/role) will temporarily assume the `CDKDeployRole` in the Prod account. It gets short-lived credentials specific to that role in the Prod account. It then uses *these temporary credentials* to run `cdk bootstrap` and `cdk deploy` targeting the Prod account/region.
 * **Security:** This relies on a trust relationship configured on the `CDKDeployRole` in Prod, explicitly allowing assumption by the role/user associated with your GitLab runner in the Dev/CI account.
@@ -49,9 +48,9 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
       - bootstrap      # Bootstraps Dev
       - validate       # Validates Dev connection
       - build          # Builds CDK app
-      - deploy_dev     # Deploys to Dev (Using underscore)
-      - bootstrap_prod # ADD THIS STAGE (Using underscore)
-      - deploy_prod    # ADD THIS STAGE (Using underscore)
+      - deploy_dev     # Deploys to Dev
+      - bootstrap_prod # ADD THIS STAGE
+      - deploy_prod    # ADD THIS STAGE
     ```
 
 3.  **Add `bootstrap_prod` Job:** Add the following **new job definition** to the *end* of the `.gitlab-ci.yml` file. Note the conventional key order.
