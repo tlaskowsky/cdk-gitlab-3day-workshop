@@ -1,7 +1,7 @@
 ---
 layout: default
 title: lab-5 source
-parent: references
+parent: References
 nav_order: 5
 has_children: true
 ---

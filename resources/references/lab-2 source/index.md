@@ -1,7 +1,7 @@
 ---
 layout: default
 title: lab-2 source
-parent: references
+parent: References
 nav_order: 2
 has_children: true
 ---
