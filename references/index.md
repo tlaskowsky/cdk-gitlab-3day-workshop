@@ -1,8 +1,7 @@
 ---
 layout: default
 title: References
-parent: Resources
-nav_order: 2
+nav_order: 998
 has_children: true
 ---
 
