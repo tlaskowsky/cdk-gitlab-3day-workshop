@@ -485,7 +485,10 @@ It's important to remove the AWS resources created during this lab to avoid unne
 3.  **Run CDK Destroy:** Execute the destroy command. You will need to pass the same context variables used for deployment because your app code requires them for validation and lookups. Replace `YOUR_ACCOUNT_ID` and `YOUR_REGION` with the correct values for your Dev environment if they are not set in your default AWS profile or environment variables.
     ```bash
     # Example destroy command - adjust account/region as needed for your Dev env
-    npx cdk destroy --all -c account=YOUR_ACCOUNT_ID -c region=YOUR_REGION
+    # npx cdk destroy --all -c account=YOUR_ACCOUNT_ID -c region=YOUR_REGION
+
+    # If you have set the aws credentials using `aws configure`, then just use below
+    npx cdk destroy --all
     ```
     * `--all`: Destroys all stacks defined in your CDK app (`CoreStack`, `ComputeStack`).
     * `-c ...`: Provides the necessary context for account and region lookup/validation within the app code.
