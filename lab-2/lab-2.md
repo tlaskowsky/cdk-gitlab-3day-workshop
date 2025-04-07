@@ -19,7 +19,7 @@ has_children: true
     * **`CDKDeployRole` ARN:** The full ARN of the IAM role pre-created in the Prod account that your GitLab CI job needs to assume (e.g., `arn:aws:iam::PROD_ACCOUNT_ID:role/CDKDeployRole`).
 * Your local environment configured if making changes locally (Node, CDK, Git, AWS Creds for Dev).
 
-## Step 0: Verify Starting Code**
+## Step 0: Verify Starting Code
 
 Before making changes for Lab 2, let's ensure your key files match the final working state from Lab 1 after troubleshooting.
 
