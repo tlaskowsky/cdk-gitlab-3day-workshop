@@ -210,28 +210,28 @@ Make the `CoreStack` compliant, apply the validation Aspect, and add the require
     * Apply the `ComplianceAspect` to the app scope *after* the `BasicTagger`.
     * **Add** a line to directly apply the `PITR-Enabled: true` tag to the table instance *after* the stack is instantiated and *after* the Aspect is applied.
     ```typescript
-    // bin/app.ts
-    // ... other imports ...
-    import { ComplianceAspect } from '../lib/compliance-aspect'; // <<< Import Compliance Aspect
+        // bin/app.ts
+        // ... other imports ...
+        import { ComplianceAspect } from '../lib/compliance-aspect'; // <<< Import Compliance Aspect
 
-    // ... app definition, context reading ...
-    const deploymentProps = { /* ... env ... */ };
+        // ... app definition, context reading ...
+        const deploymentProps = { /* ... env ... */ };
 
-    // --- Instantiate Stacks ---
-    const coreStack = new CoreStack(app, `${prefix}-CoreStack`, deploymentProps);
-    const computeStack = new ComputeStack(app, `${prefix}-ComputeStack`, { /* ... props ... */ });
+        // --- Instantiate Stacks ---
+        const coreStack = new CoreStack(app, `${prefix}-CoreStack`, deploymentProps);
+        const computeStack = new ComputeStack(app, `${prefix}-ComputeStack`, { /* ... props ... */ });
 
-    // --- Apply Aspects ---
-    console.log('Applying aspects for tagging and compliance...');
-    cdk.Aspects.of(app).add(new BasicTagger('environment', environment));
-    cdk.Aspects.of(app).add(new BasicTagger('project', 'doc-pipeline-workshop'));
-    cdk.Aspects.of(app).add(new BasicTagger('prefix', prefix));
-    cdk.Aspects.of(app).add(new ComplianceAspect()); // <<< Apply Compliance Aspect
-    console.log('Tagging and Compliance aspects applied.');
+        // --- Apply Aspects ---
+        console.log('Applying aspects for tagging and compliance...');
+        cdk.Aspects.of(app).add(new BasicTagger('environment', environment));
+        cdk.Aspects.of(app).add(new BasicTagger('project', 'doc-pipeline-workshop'));
+        cdk.Aspects.of(app).add(new BasicTagger('prefix', prefix));
+        cdk.Aspects.of(app).add(new ComplianceAspect()); // <<< Apply Compliance Aspect
+        console.log('Tagging and Compliance aspects applied.');
 
-    // --- Apply Required Tag Directly ---
-    console.log('Applying PITR-Enabled tag to DynamoDB table...');
-    cdk.Tags.of(coreStack.table).add('PITR-Enabled', 'true'); // <<< ADD THIS LINE
+        // --- Apply Required Tag Directly ---
+        console.log('Applying PITR-Enabled tag to DynamoDB table...');
+        cdk.Tags.of(coreStack.table).add('PITR-Enabled', 'true'); // <<< ADD THIS LINE
     ```
 
 ---
