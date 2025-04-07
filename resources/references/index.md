@@ -1,7 +1,8 @@
 ---
 layout: default
-title: References
-nav_order: 998
+title: Cheatsheets
+parent: Resources
+nav_order: 2
 has_children: true
 ---
 
