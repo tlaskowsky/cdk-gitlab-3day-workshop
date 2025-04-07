@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Cheatsheets
+title: Solution Code
 parent: Resources
 nav_order: 2
 has_children: true
