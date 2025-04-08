@@ -186,7 +186,7 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
        mkdir scripts
     ```
 2. **Create Script Template File:** Inside the scripts directory, create a file named poll_sqs.sh.template.
-3. **Add Bash Script Content:  Paste the following Bash script (using %%PLACEHOLDERS%% and Lab 3 logic) into scripts/poll_sqs.sh.template:
+3. **Add Bash Script Content:**  Paste the following Bash script (using %%PLACEHOLDERS%% and Lab 3 logic) into scripts/poll_sqs.sh.template:
     ```bash
       #!/bin/bash
       echo "Polling SQS Queue: %%QUEUE_URL%% (Region determined automatically by AWS CLI)"
@@ -246,7 +246,7 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
 
     ```
 
-4. **Modify lib/compute-stack.ts: ** Open `lib/compute-stack.ts`.
+4. **Modify lib/compute-stack.ts:** Open `lib/compute-stack.ts`.
   * Add/Update Imports: Ensure fs, path, dynamodb, and iam are imported. Remove s3.
   ```typescript
     import * as fs from 'fs';
