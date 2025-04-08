@@ -402,11 +402,11 @@ Deploy the Fargate compute stack and test the full flow.
     git push origin main
     ```
     Monitor the `deploy_dev` job in the pipeline.
-    > **IMPORTANT - Force New Deployment:** After `deploy_dev` succeeds, **force a new deployment** of the Fargate service (ECS Console -> Cluster -> Service -> Update -> check 'Force new deployment' -> Update) to ensure it pulls the image you pushed in Step 4.
+    > **Troubleshooting Tip - Force New Deployment:** After `deploy_dev` succeeds, **force a new deployment** of the Fargate service (ECS Console -> Cluster -> Service -> Update -> check 'Force new deployment' -> Update) to ensure it pulls the image you pushed in Step 4.
 2.  **Check CloudWatch Logs for Debug Output:**
     * Go to CloudWatch -> Log groups -> Find `/ecs/${prefix}-ComputeStack-FargateService`.
     * Look at the latest log stream(s).
-    * Verify the `ls -la` and `cat package.json` output (from the debug `CMD`) look correct, and that the `SyntaxError` is gone. You should see the "Running index.js..." message followed by your application logs (like "Polling SQS Queue...").
+    * Verify the `ls -la` and `cat package.json` output (from the debug `CMD`) look correct. You should see the "Running index.js..." message followed by your application logs (like "Polling SQS Queue...").
 3.  **Verify ECS Resources / Test End-to-End (If logs look correct):**
     * Upload a sample **PDF file** to the S3 input bucket.
     * **Monitor ECS Service:** Watch the "Running tasks" count increase.
