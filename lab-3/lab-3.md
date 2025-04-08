@@ -181,49 +181,44 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
 
 ## Step 5: Update Compute Stack & UserData
 
-1.  **Open `lib/compute-stack.ts`**.
-2.  **Verify Imports:** Ensure `dynamodb` and `iam` are imported.
-3.  **Verify Props Interface:** Ensure `table: dynamodb.ITable;` is present.
-4.  **Verify Permissions:** Ensure `props.table.grantWriteData(ec2Role);` and the `comprehend:DetectSentiment` policy statement are present.
-5.  **Update UserData Script:** **Replace** the `pollingScriptTemplate` constant definition with the following **corrected version** that does *not* escape the shell dollar signs (`$`).
-    ```typescript
-      // Inside ComputeStack constructor
-
-      // Define the script TEMPLATE with PLACEHOLDERS and NO escaped $.
-      const pollingScriptTemplate = `#!/bin/bash
+1. **Create scripts Directory:** in the root of your project:
+    ```bash
+       mkdir scripts
+    ```
+2. **Create Script Template File:** Inside the scripts directory, create a file named poll_sqs.sh.template.
+3. **Add Bash Script Content:  Paste the following Bash script (using %%PLACEHOLDERS%% and Lab 3 logic) into scripts/poll_sqs.sh.template:
+    ```bash
+      #!/bin/bash
       echo "Polling SQS Queue: %%QUEUE_URL%% (Region determined automatically by AWS CLI)"
       # Assign resolved values to shell variables
       QUEUE_URL="%%QUEUE_URL%%"
       TABLE_NAME="%%TABLE_NAME%%"
 
       while true; do
-        # Receive message using shell variable $QUEUE_URL
-        REC_MSG=$(aws sqs receive-message --queue-url "$QUEUE_URL" --wait-time-seconds 10 --max-number-of-messages 1)
-        # Use shell variables $REC_MSG etc. (NO backslashes)
-        MSG_BODY=$(echo "$REC_MSG" | jq -r '.Messages[0].Body')
-        MSG_ID=$(echo "$REC_MSG" | jq -r '.Messages[0].MessageId')
+        echo "Receiving messages..."
+        # Receive message
+        REC_MSG=$(aws sqs receive-message --queue-url "$QUEUE_URL" --attribute-names All --message-attribute-names All --wait-time-seconds 10 --max-number-of-messages 1)
+        MSG_BODY=$(echo "$REC_MSG" | jq -r '.Messages[0].Body // empty')
+        MSG_ID=$(echo "$REC_MSG" | jq -r '.Messages[0].MessageId // empty')
 
-        # Check if a message was received using shell variable $MSG_BODY
+        # Check if a message was received
         if [ -n "$MSG_BODY" ] && [ "$MSG_BODY" != "null" ]; then
           echo "Received message ID: $MSG_ID"
           echo "Body: $MSG_BODY"
 
-          # --- Call Comprehend ---
-          TEXT_TO_ANALYZE="It is raining today in Seattle" # Replace with "$MSG_BODY" if body is plain text
+          # --- Call Comprehend (Lab 3) ---
+          TEXT_TO_ANALYZE="It is raining today in Seattle" # Using dummy text for Lab 3
           echo "Running sentiment analysis..."
           SENTIMENT_RESULT=$(aws comprehend detect-sentiment --language-code en --text "$TEXT_TO_ANALYZE" 2> /home/ec2-user/comprehend_error.log)
           SENTIMENT=$(echo "$SENTIMENT_RESULT" | jq -r '.Sentiment // "ERROR"')
           SENTIMENT_SCORE_POSITIVE=$(echo "$SENTIMENT_RESULT" | jq -r '.SentimentScore.Positive // "0"')
-
           echo "Sentiment: $SENTIMENT (Positive Score: $SENTIMENT_SCORE_POSITIVE)"
 
-          # --- Write to DynamoDB ---
-          JOB_ID="job-${MSG_ID}" # Use shell variable $MSG_ID
+          # --- Write to DynamoDB (Lab 3) ---
+          JOB_ID="job-${MSG_ID}"
           TIMESTAMP=$(date --iso-8601=seconds)
-
           echo "Writing results to DynamoDB table: $TABLE_NAME"
-          # Construct JSON item for put-item using jq and shell variables
-          ITEM_JSON=$(jq -n --arg jobId "$JOB_ID" --arg ts "$TIMESTAMP" --arg status "PROCESSED" --arg sentiment "$SENTIMENT" --arg scorePos "$SENTIMENT_SCORE_POSITIVE" --arg msgBody "$MSG_BODY" '{
+          ITEM_JSON=$(jq -n --arg jobId "$JOB_ID" --arg ts "$TIMESTAMP" --arg status "PROCESSED_LAB3" --arg sentiment "$SENTIMENT" --arg scorePos "$SENTIMENT_SCORE_POSITIVE" --arg msgBody "$MSG_BODY" '{
             "jobId": {"S": $jobId},
             "timestamp": {"S": $ts},
             "status": {"S": $status},
@@ -231,48 +226,112 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
             "sentimentScorePositive": {"N": $scorePos},
             "messageBody": {"S": $msgBody}
           }')
-
-          # Use AWS CLI to put the item using shell variable $TABLE_NAME
           aws dynamodb put-item --table-name "$TABLE_NAME" --item "$ITEM_JSON"
-          # Check exit status (using $?)
           if [ $? -eq 0 ]; then
               echo "Results written to DynamoDB."
           else
               echo "ERROR writing to DynamoDB."
           fi
 
-          # Append simple confirmation to local log (optional)
+          # Append simple confirmation to local log
           echo "Processed message ID: $MSG_ID at $TIMESTAMP" >> /home/ec2-user/sqs_messages.log
+
+          # NOTE: No SQS message delete in Lab 3
 
         else
           echo "No message received."
         fi
-
-        # Pause between polls
         sleep 5
-      done`;
+      done
 
-      // Ensure the rest of the UserData.addCommands block uses the heredoc + sed method
-      userData.addCommands(
-          'set -ex',
-          'echo "UserData Update Trigger: $(date)" > /home/ec2-user/userdata_trigger.log',
-          // ... installs ...
-          'echo "Creating polling script template..."',
-          `cat <<'EOF' > /home/ec2-user/poll_sqs.sh.template
-${pollingScriptTemplate}
-EOF`,
-          'echo "Replacing placeholders in script..."',
-          `sed -e "s|%%QUEUE_URL%%|${props.processingQueue.queueUrl}|g" \\`,
-          `    -e "s|%%TABLE_NAME%%|${props.table.tableName}|g" \\`,
-          `    /home/ec2-user/poll_sqs.sh.template > /home/ec2-user/poll_sqs.sh`,
-          'chmod +x /home/ec2-user/poll_sqs.sh',
-          // ... chown/touch ...
-          'echo "Polling script created."',
-          'echo "Starting polling script in background..."',
-          'sudo -u ec2-user bash -c "nohup /home/ec2-user/poll_sqs.sh > /home/ec2-user/poll_sqs.out 2>&1 &"',
-          'echo "UserData script finished."'
-      );
     ```
+
+4. **Modify lib/compute-stack.ts: ** Open `lib/compute-stack.ts`.
+  * Add/Update Imports: Ensure fs, path, dynamodb, and iam are imported. Remove s3.
+  ```typescript
+    import * as fs from 'fs';
+    import * as path from 'path';
+    import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+    import * as iam from 'aws-cdk-lib/aws-iam';
+    // Keep: cdk, Construct, ec2, sqs, s3
+  ```
+  * Update Props Interface: Ensure only processingQueue and table are present.
+  ```typescript
+    export interface ComputeStackProps extends cdk.StackProps {
+    processingQueue: sqs.Queue;
+    table: dynamodb.ITable;
+  } 
+  ```
+  * Grant Permissions: Inside the constructor, ensure the DDB Write and Comprehend permissions are granted to ec2Role.
+  ```typescript
+      // Grant DDB write permissions (Lab 3)
+      props.table.grantWriteData(ec2Role);
+      // Grant Comprehend permissions (Lab 3)
+      ec2Role.addToPrincipalPolicy(new iam.PolicyStatement({
+        actions: ['comprehend:DetectSentiment'],
+        resources: ['*'],
+      }));
+  ```
+  * Replace UserData Logic: Replace the entire // --- EC2 UserData --- section down to (but not including) the // --- EC2 Instance Definition --- comment with the following code that reads the file and uses sed:
+  ```typescript
+        // --- EC2 UserData (Read script from file, use sed) ---
+        const userData = ec2.UserData.forLinux();
+
+        // Read script template content from external file
+        // Ensure 'fs' and 'path' are imported at the top of the file
+        const scriptTemplatePath = 'scripts/poll_sqs.sh.template'; // Path relative to project root
+        console.log(`Reading UserData script from: ${scriptTemplatePath}`);
+        let pollingScriptTemplate: string;
+        try {
+          pollingScriptTemplate = fs.readFileSync(scriptTemplatePath, 'utf8');
+        } catch (err) {
+            console.error(`Error reading script template file at ${scriptTemplatePath}:`, err);
+            throw new Error(`Could not read script template file: ${scriptTemplatePath}`);
+        }
+
+        // Add commands to UserData using the template + sed approach
+        userData.addCommands(
+            'set -ex', // Exit on error, print commands
+            'echo "UserData Update Trigger: $(date)" > /home/ec2-user/userdata_trigger.log',
+            // Install tools
+            'sudo yum update -y',
+            'sudo yum install -y unzip jq',
+            'echo "Installing AWS CLI v2..."',
+            'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"',
+            'unzip awscliv2.zip',
+            'sudo ./aws/install',
+            'rm -rf aws awscliv2.zip',
+            'echo "AWS CLI installed successfully."',
+
+            // Write the script TEMPLATE using a heredoc
+            'echo "Creating polling script template..."',
+            // Write the content read from the file into the heredoc
+            `cat <<'EOF' > /home/ec2-user/poll_sqs.sh.template
+  ${pollingScriptTemplate}
+  EOF`, // Use the pollingScriptTemplate variable read from file
+
+            // Use sed to replace placeholders with actual values from CDK tokens
+            'echo "Replacing placeholders in script..."',
+            `sed -e "s|%%QUEUE_URL%%|${props.processingQueue.queueUrl}|g" \\`,
+            `    -e "s|%%TABLE_NAME%%|${props.table.tableName}|g" \\`,
+            `    /home/ec2-user/poll_sqs.sh.template > /home/ec2-user/poll_sqs.sh`,
+
+            // Set permissions and ownership
+            'chmod +x /home/ec2-user/poll_sqs.sh',
+            'chown ec2-user:ec2-user /home/ec2-user/poll_sqs.sh',
+            'touch /home/ec2-user/sqs_messages.log && chown ec2-user:ec2-user /home/ec2-user/sqs_messages.log',
+            'touch /home/ec2-user/poll_sqs.out && chown ec2-user:ec2-user /home/ec2-user/poll_sqs.out',
+            'touch /home/ec2-user/userdata_trigger.log && chown ec2-user:ec2-user /home/ec2-user/userdata_trigger.log',
+            'touch /home/ec2-user/comprehend_error.log && chown ec2-user:ec2-user /home/ec2-user/comprehend_error.log',
+            // No textract log needed yet
+            'echo "Polling script created."',
+
+            // Run the script as ec2-user
+            'echo "Starting polling script in background..."',
+            'sudo -u ec2-user bash -c "nohup /home/ec2-user/poll_sqs.sh > /home/ec2-user/poll_sqs.out 2>&1 &"',
+            'echo "UserData script finished."'
+        );
+  ```
 
 ## Step 6: Update App Entry Point
 
