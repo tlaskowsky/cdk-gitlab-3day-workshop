@@ -1,11 +1,12 @@
 ---
 layout: default
-title: Lab 6 Refactor to Fargate + Monitoring + CloudFront Static Site
+title: Lab 6 Refactor to Fargate + Lab 6 Monitoring + CloudFront Static Site
 nav_order: 60
 has_children: true
 ---
 
-# Lab 6: Refactor to Fargate + Monitoring + CloudFront Static Site
+# Lab 6a: Refactor to Fargate + 
+# Lab 6b: Monitoring + CloudFront Static Site
 
 ## Time Allocation
 Day 3 Afternoon (Approximately 3 hours)
@@ -28,6 +29,7 @@ Refactor the compute layer from EC2 to a scalable, containerized ECS Fargate ser
 
 In this lab, you will:
 
+* Lab 6a
 1. Containerize the document processing application:
    - Create a Dockerfile for the Node.js processor
    - Build and push to Amazon ECR
@@ -35,6 +37,8 @@ In this lab, you will:
    - Remove EC2 instance
    - Create an ECS Fargate service
    - Configure auto-scaling based on queue depth
+
+* Lab 6b
 3. Add monitoring and alerting:
    - Create an SNS topic for notifications
    - Configure CloudWatch alarms for SQS queue and Fargate metrics

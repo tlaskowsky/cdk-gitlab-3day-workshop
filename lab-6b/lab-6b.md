@@ -1,7 +1,7 @@
 ---
 layout: default
-title: Lab 6 Hands-on Instructions
-nav_order: 61
+title: Lab 6b Hands-on Instructions
+nav_order: 62
 has_children: true
 sitemap: false
 published: false
