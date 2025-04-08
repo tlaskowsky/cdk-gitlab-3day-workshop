@@ -16,7 +16,7 @@ Replace the EC2-based SQS message processor with a scalable, containerized solut
 * Completion of Lab 5. Your project deploys successfully to Dev with prefixing, tests, monitoring, and aspects. Code should match final state from Lab 5.
 * **Docker:** Docker installed and running on your local machine. *(See Step 0)*.
 * **AWS Credentials:** Local AWS credentials configured for the Dev environment with permissions to interact with ECR (push images) and deploy CDK stacks.
-* **Processor App Code:** You will need the Node.js application code for the SQS message processor (`index.js`). This should be provided by your instructor or in accompanying lab materials. *(Ensure you have the version using SDK v3 imports)*.
+* **Processor App Code:** You will need the Node.js application code for the SQS message processor (`index.js`). This should be provided by your instructor or in accompanying lab materials. *(Ensure you have the version using SDK v3 imports and correct try/catch logic)*.
 
 ---
 
@@ -33,7 +33,7 @@ This lab requires building a Docker image locally. If you do not already have Do
 
 ## Step 1: Containerize the Processing Logic
 
-Create the Node.js application structure and the Dockerfile.
+Create the Node.js application structure, code, and the Dockerfile.
 
 1.  **Create App Directory:** In your CDK project root:
     ```bash
@@ -54,7 +54,7 @@ Create the Node.js application structure and the Dockerfile.
     npm install @aws-sdk/client-sqs @aws-sdk/client-s3 @aws-sdk/client-textract @aws-sdk/client-comprehend @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb
     cd ..
     ```
-3.  **Create Handler File (`index.js`):** Create the file `processor-app/index.js` and paste the provided Node.js application code into it. This code contains the logic to poll SQS, call Textract/Comprehend, write to DynamoDB, and delete messages using AWS SDK v3.
+3.  **Create Handler File (`index.js`):** Create the file `processor-app/index.js` and paste the provided Node.js application code into it. This code contains the logic to poll SQS, call Textract/Comprehend, write to DynamoDB, and delete messages using AWS SDK v3. *(Instructor: Ensure students have access to the correct index.js content with necessary try/catch blocks)*.
 4.  **Create `Dockerfile`:** Create the file `processor-app/Dockerfile` and paste the following content:
     ```dockerfile
     # Dockerfile for processor-app (Revised Build Order v3 & Debug CMD)
