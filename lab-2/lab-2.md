@@ -124,7 +124,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     # Job to deploy the CDK application to the Prod environment
     deploy_to_prod:
       stage: deploy-prod
-      image: public.ecr.aws/sam/build-nodejs18.x:latest} # Assuming NODE_VERSION is defined in variables
+      image: public.ecr.aws/sam/build-nodejs18.x:latest
       tags: [cdk] # Assuming 'cdk' runner tag
       cache: # Setup keys first
         key:
