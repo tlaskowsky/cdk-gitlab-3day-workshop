@@ -240,7 +240,7 @@ To resolve the TypeScript compilation errors caused by embedding complex Bash sc
             'sudo yum update -y',
             'sudo yum install -y unzip jq',
             'echo "Installing AWS CLI v2..."',
-            'curl "[https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip](https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip)" -o "awscliv2.zip"',
+            'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"',
             'unzip awscliv2.zip',
             'sudo ./aws/install',
             'rm -rf aws awscliv2.zip',
