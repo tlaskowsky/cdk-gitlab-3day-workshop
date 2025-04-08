@@ -256,12 +256,12 @@ Deploy the Fargate compute stack and test.
     git push origin main
     # Monitor pipeline...
     ```
-    > **IMPORTANT - Force New Deployment:** After the `deploy_dev` job finishes successfully in the pipeline, **force a new deployment** of the Fargate service (ECS Console -> Cluster -> Service -> Update -> check 'Force new deployment' -> Update) to ensure it pulls the image you pushed in Step 4.
+    > **IMPORTANT - For troubleshooting, Force New Deployment:** After the `deploy_dev` job finishes successfully in the pipeline, **force a new deployment** of the Fargate service (ECS Console -> Cluster -> Service -> Update -> check 'Force new deployment' -> Update) to ensure it pulls the image you pushed in Step 4.
 
 2.  **Check CloudWatch Logs for Debug Output:**
     * Go to CloudWatch -> Log groups -> Find `/ecs/${prefix}-ComputeStack-FargateService`.
     * Look at the latest log stream(s).
-    * Verify the `ls -la` and `cat package.json` output (from the debug `CMD`) look correct, and that the `SyntaxError: Cannot use import statement outside a module` error is **gone**. You should see the "Running index.js..." message followed by your application logs (like "Polling SQS Queue...").
+    * Verify the `ls -la` and `cat package.json` output (from the debug `CMD`) look correct. You should see the "Running index.js..." message followed by your application logs (like "Polling SQS Queue...").
 3.  **Verify ECS Resources / Test End-to-End (If logs look correct):**
     * Upload a sample **PDF file** to the S3 input bucket.
     * **Monitor ECS Service:** Watch the "Running tasks" count increase.
@@ -280,5 +280,3 @@ Deploy the Fargate compute stack and test.
 ## Congratulations!
 
 You have successfully refactored your compute layer to ECS Fargate!
-
-```
