@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Lab 6 Refactor to Fargate + Lab 6 Monitoring + CloudFront Static Site
+title: Lab 6 Refactor to Fargate + Monitoring + CloudFront Static Site
 nav_order: 60
 has_children: true
 ---
