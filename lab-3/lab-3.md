@@ -207,7 +207,7 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
           echo "Body: $MSG_BODY"
 
           # --- Call Comprehend (Lab 3) ---
-          TEXT_TO_ANALYZE="It is raining today in Seattle" # Using dummy text for Lab 3
+          TEXT_TO_ANALYZE_TRUNCATED=$(printf '%s' "$TEXT_TO_ANALYZE" | head -c 4999)
           echo "Running sentiment analysis..."
           SENTIMENT_RESULT=$(aws comprehend detect-sentiment --language-code en --text "$TEXT_TO_ANALYZE" 2> /home/ec2-user/comprehend_error.log)
           SENTIMENT=$(echo "$SENTIMENT_RESULT" | jq -r '.Sentiment // "ERROR"')
@@ -334,8 +334,6 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
   ```
 
 ## Step 6: Update App Entry Point
-
-*(No changes needed in this step compared to the previous version - just ensure it matches)*
 
 1.  **Open `bin/<your-project-name>.ts`**.
 2.  **Verify Table Prop:** Ensure `ComputeStack` instantiation passes `table: coreStack.table`.
