@@ -366,7 +366,7 @@ Modify `lib/compute-stack.ts` to remove the EC2 instance and replace it with the
         },
         maxScalingCapacity: 2,
         minScalingCapacity: 0,
-        visibilityTimeout: cdk.Duration.minutes(5), // Adjust if needed
+        // visibilityTimeout: cdk.Duration.minutes(5), // Adjust if needed
         logDriver: ecs.LogDrivers.awsLogs({ streamPrefix: 'doc-processor', logGroup: logGroup }),
       });
 
