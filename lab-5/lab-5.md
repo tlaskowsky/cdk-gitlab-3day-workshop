@@ -201,32 +201,34 @@ Make the `CoreStack` compliant, apply the validation Aspect, and add the require
 
 1.  **Update `lib/tagging-aspect.ts`:** Open the `BasicTagger` file (created in Lab 1) and replace its content with this version that uses Cfn tagging:
     ```typescript
-        // lib/tagging-aspect.ts (Use Cfn Tagging)
+        // lib/tagging-aspect.ts (Revert to L2 Tagging API)
         import * as cdk from 'aws-cdk-lib';
         import { IConstruct } from 'constructs';
 
         export class BasicTagger implements cdk.IAspect {
-            private readonly key: string;
-            private readonly value: string;
-            constructor(key: string, value: string | undefined) { // Allow undefined from tryGetContext
-                this.key = key;
-                this.value = value ?? ''; // Default to empty string if undefined
-                if (value === undefined || value === null) {
-                console.warn(`BasicTagger: Value for tag key '${key}' was undefined or null.`);
-                }
+          private readonly key: string;
+          private readonly value: string;
+          constructor(key: string, value: string | undefined) { // Allow undefined from tryGetContext
+            this.key = key;
+            // Ensure we have a string value, even if context lookup failed.
+            // An empty tag value might still cause issues depending on SCPs, but avoids runtime errors here.
+            this.value = value ?? '';
+            if (value === undefined || value === null) {
+              // Add a warning during synthesis if the context value was missing
+              // Note: This might appear multiple times if aspect visits many nodes
+              console.warn(`BasicTagger: Value for tag key '${key}' was undefined or null.`);
             }
+          }
 
-            public visit(node: IConstruct): void {
-                // Use the CfnResource Tags API if possible
-                if (node instanceof cdk.CfnResource && typeof node.tags === 'object' && typeof node.tags.setTag === 'function') {
-                node.tags.setTag(this.key, this.value);
-                }
-                // Optional Fallback (unlikely needed for core resources):
-                // else if (cdk.TagManager.isTaggable(node)) {
-                //    cdk.Tags.of(node).add(this.key, this.value);
-                // }
+          public visit(node: IConstruct): void {
+            // Use the standard L2 Tags API.
+            // Check if the construct is taggable first.
+            if (cdk.TagManager.isTaggable(node)) {
+              // Use the L2 setTag method (equivalent to Tags.of(node).add)
+              node.tags.setTag(this.key, this.value);
             }
-        }
+          }
+        } 
     ```
 2.  **Enable PITR:** Open `lib/core-stack.ts`. Find the `dynamodb.Table` definition and **ensure** PITR is enabled by setting `pointInTimeRecovery: true`. Also ensure the `Timestamp` property was removed from the `CustomResource` definition (as done in previous troubleshooting).
     ```typescript
