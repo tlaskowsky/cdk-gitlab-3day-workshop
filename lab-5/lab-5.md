@@ -129,14 +129,18 @@ Let's write initial tests for the `CoreStack`. These will likely fail later and 
         });
       });
 
-      // Test 4: DynamoDB Table Properties (Initial - PITR Disabled)
-      test('DynamoDB Table should have PAY_PER_REQUEST billing and PITR disabled initially', () => {
-        template.hasResourceProperties('AWS::DynamoDB::Table', {
-          BillingMode: 'PAY_PER_REQUEST',
-          // Check that PointInTimeRecoverySpecification is ABSENT initially
-          PointInTimeRecoverySpecification: Match.absent()
+        // Test 4: DynamoDB Table Properties (Assertion updated below)
+        test('DynamoDB Table should have PITR Enabled and Tagged', () => {
+          template.hasResourceProperties('AWS::DynamoDB::Table', {
+            BillingMode: 'PAY_PER_REQUEST',
+            PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true } // Check PITR enabled
+          });
+          template.hasResourceProperties('AWS::DynamoDB::Table', {
+            Tags: Match.arrayWith([ // Check Tag applied
+              { Key: 'PITR-Enabled', Value: 'true' }
+            ])
+          });
         });
-      });
 
       // Test 5: Snapshot Test
       test('Core Stack should match snapshot', () => {
