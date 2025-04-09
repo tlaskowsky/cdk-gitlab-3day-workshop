@@ -85,7 +85,7 @@ Each lab will build incrementally on previous work, with each lab taking approxi
   - CloudWatch Monitoring: Metrics, Alarms, Actions
   - Amazon SNS: Topics for notifications
 
-- [Lab 6: Refactor to Fargate + CloudFront Static Site](./lab-6/README.md)
+- [Lab 6: Refactor to Fargate + CloudFront Static Site](./lab-6a/README.md)
   - Containers & Docker Basics: Dockerfile, Build, Tag, Push
   - Amazon ECR & Amazon ECS/Fargate: Concepts and implementation
   - S3 Static Website Hosting & Amazon CloudFront: CDN basics
