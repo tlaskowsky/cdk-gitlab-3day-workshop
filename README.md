@@ -76,18 +76,18 @@ Each lab will build incrementally on previous work, with each lab taking approxi
 
 ### Day 3: Testing, Refactoring & Exposure
 
-- [Lab 5: Automated Tests + Infrastructure Compliance](./lab-5/README.md)
+- [Lab 5: Automated Tests + Monitoring + Infrastructure Compliance](./lab-5/README.md)
   - Testing IaC: Unit Testing, Snapshot Testing, Integration Testing concepts
   - CDK assertions Module: Template.fromStack(), hasResourceProperties()
   - Snapshot Testing with Jest (toMatchSnapshot())
   - CI/CD Test Stages: Integrating tests into the pipeline
   - CDK Aspects for Policy/Compliance Enforcement
-
-- [Lab 6: Refactor to Fargate + Monitoring + CloudFront Static Site](./lab-6/README.md)
-  - Containers & Docker Basics: Dockerfile, Build, Tag, Push
-  - Amazon ECR & Amazon ECS/Fargate: Concepts and implementation
   - CloudWatch Monitoring: Metrics, Alarms, Actions
   - Amazon SNS: Topics for notifications
+
+- [Lab 6: Refactor to Fargate + CloudFront Static Site](./lab-6/README.md)
+  - Containers & Docker Basics: Dockerfile, Build, Tag, Push
+  - Amazon ECR & Amazon ECS/Fargate: Concepts and implementation
   - S3 Static Website Hosting & Amazon CloudFront: CDN basics
 
 ## Workshop Materials
@@ -110,7 +110,7 @@ If you encounter issues during the workshop:
 
 - [AWS CDK TypeScript Reference](https://docs.aws.amazon.com/cdk/api/latest/typescript/api/index.html)
 - [GitLab CI/CD Documentation](https://docs.gitlab.com/ee/ci/)
-- [Workshop Code Repository](https://gitlab.com/your-workshop-repo)
+- [Workshop Code Repository](https://github.com/tlaskowsky/cdk-gitlab-3day-workshop)
 - [Cheat Sheets](./resources/cheatsheets/README.md)
 
 ---

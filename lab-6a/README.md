@@ -1,12 +1,12 @@
 ---
 layout: default
-title: Lab 6 Refactor to Fargate + Monitoring + CloudFront Static Site
+title: Lab 6 Refactor to Fargate + CloudFront Static Site
 nav_order: 60
 has_children: true
 ---
 
-# Lab 6a: Refactor to Fargate + 
-# Lab 6b: Monitoring + CloudFront Static Site
+# Lab 6a: Refactor EC2 to ECS/Fargate + 
+# Lab 6b: CloudFront Static Site
 
 ## Time Allocation
 Day 3 Afternoon (Approximately 3 hours)
@@ -19,8 +19,6 @@ Refactor the compute layer from EC2 to a scalable, containerized ECS Fargate ser
 - **Containers & Docker**: Dockerfile, build, tag, push process
 - **Amazon ECR**: Container Registry for storing Docker images
 - **Amazon ECS & Fargate**: Serverless container execution
-- **CloudWatch Monitoring**: Metrics, alarms, and notifications
-- **Amazon SNS**: Topic-based notifications
 - **Amazon CloudFront**: Content delivery network for static sites
 - **S3 Static Website Hosting**: Serving frontend content
 - **CDK S3 Deployment**: BucketDeployment construct
@@ -39,15 +37,12 @@ In this lab, you will:
    - Configure auto-scaling based on queue depth
 
 * Lab 6b
-3. Add monitoring and alerting:
-   - Create an SNS topic for notifications
-   - Configure CloudWatch alarms for SQS queue and Fargate metrics
-4. Deploy a static website:
+3. Deploy a static website:
    - Create an S3 bucket for static content
    - Set up a CloudFront distribution
    - Deploy simple HTML/CSS files to show system status
-5. Test the end-to-end solution
-6. Deploy and verify all components
+4. Test the end-to-end solution
+5. Deploy and verify all components
 
 ## Prerequisites
 
