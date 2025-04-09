@@ -294,13 +294,8 @@ Make the `CoreStack` compliant, apply the validation Aspect, and add the require
           processingQueue: coreStack.queue,
           table: coreStack.table,
           inputBucket: coreStack.bucket,
-          ecrRepoName: coreStack.ecrRepo.repositoryName // Pass repo name
         });
 
-        // Inside bin/app.ts, after ComputeStack instantiation
-
-        console.log('Instantiating FrontendStack...');
-        const frontendStack = new FrontendStack(app, `${prefix}-FrontendStack`, deploymentProps);
 
         // Aspects should apply to this stack too if applied at the app level
 
