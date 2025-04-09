@@ -111,7 +111,7 @@ If you encounter issues during the workshop:
 - [AWS CDK TypeScript Reference](https://docs.aws.amazon.com/cdk/api/latest/typescript/api/index.html)
 - [GitLab CI/CD Documentation](https://docs.gitlab.com/ee/ci/)
 - [Workshop Code Repository](https://github.com/tlaskowsky/cdk-gitlab-3day-workshop)
-- [Cheat Sheets](./resources/cheatsheets/README.md)
+- [Cheat Sheets](./resources/cheatsheets/index.md)
 
 ---
 
