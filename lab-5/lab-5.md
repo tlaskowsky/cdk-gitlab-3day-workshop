@@ -253,7 +253,6 @@ Make the `CoreStack` compliant, apply the validation Aspect, and add the require
         import { ComputeStack } from '../lib/compute-stack';
         import { BasicTagger } from '../lib/tagging-aspect';
         import { ComplianceAspect } from '../lib/compliance-aspect';
-        import { FrontendStack } from '../lib/frontend-stack';
 
         const app = new cdk.App();
 
