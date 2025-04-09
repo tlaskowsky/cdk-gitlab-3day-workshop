@@ -246,30 +246,73 @@ Make the `CoreStack` compliant, apply the validation Aspect, and add the require
 3.  **Apply Aspects:** Open `bin/<your-project-name>.ts`. Ensure `ComplianceAspect` and `BasicTagger` are imported and applied correctly **with priority** for `ComplianceAspect`. Ensure the direct tag line is **removed**.
     
     ```typescript
-        // bin/app.ts
-        // ... imports ...
-        import { ComplianceAspect } from '../lib/compliance-aspect';
+        #!/usr/bin/env node
+        import 'source-map-support/register';
+        import * as cdk from 'aws-cdk-lib';
+        import { CoreStack } from '../lib/core-stack';
+        import { ComputeStack } from '../lib/compute-stack';
         import { BasicTagger } from '../lib/tagging-aspect';
+        import { ComplianceAspect } from '../lib/compliance-aspect';
+        import { FrontendStack } from '../lib/frontend-stack';
 
-        // ... app definition, context reading ...
-        const deploymentProps = { /* ... env ... */ };
+        const app = new cdk.App();
 
-        // --- Instantiate Stacks ---
+        // --- Read Context Variables ----
+        // Get prefix and environment passed via -c flags from CI/CD.
+        // Provide sensible defaults for local execution if context isn't passed.
+        const environment = app.node.tryGetContext('environment') || 'dev'; // Default to 'dev'
+        // Default prefix combines 'stuXX' and environment. Replace 'stuXX' if using a different default/variable.
+        const prefix = app.node.tryGetContext('prefix') || `stu20-${environment}`;
+        console.log(`Using Prefix: ${prefix}, Environment: ${environment}`);
+
+        // --- Determine Target Account and Region ---
+        // Read from context first, then environment variables
+        const targetAccount = app.node.tryGetContext('account') ||
+                              process.env.CDK_DEFAULT_ACCOUNT ||
+                              process.env.AWS_ACCOUNT_ID;
+        const targetRegion = app.node.tryGetContext('region') ||
+                            process.env.CDK_DEFAULT_REGION ||
+                            process.env.AWS_DEFAULT_REGION;
+
+        // Validate
+        if (!targetAccount) { throw new Error("Account context/variable not set"); }
+        if (!targetRegion) { throw new Error("Region context/variable not set"); }
+        console.log(`Targeting AWS Account: ${targetAccount} Region: ${targetRegion}`);
+
+        const deploymentProps = {
+          env: { account: targetAccount, region: targetRegion },
+        };
+
+        // --- Instantiate Stacks with Prefixed IDs ---
+        // *** CHANGE: Use the prefix in the Stack ID ***
+        console.log('Instantiating CoreStack...');
         const coreStack = new CoreStack(app, `${prefix}-CoreStack`, deploymentProps);
-        const computeStack = new ComputeStack(app, `${prefix}-ComputeStack`, { /* ... props ... */ });
+
+        console.log('Instantiating ComputeStack...');
+        // *** CHANGE: Use the prefix in the Stack ID ***
+        const computeStack = new ComputeStack(app, `${prefix}-ComputeStack`, {
+          ...deploymentProps,
+          processingQueue: coreStack.queue,
+          table: coreStack.table,
+          inputBucket: coreStack.bucket,
+          ecrRepoName: coreStack.ecrRepo.repositoryName // Pass repo name
+        });
+
+        // Inside bin/app.ts, after ComputeStack instantiation
+
+        console.log('Instantiating FrontendStack...');
+        const frontendStack = new FrontendStack(app, `${prefix}-FrontendStack`, deploymentProps);
+
+        // Aspects should apply to this stack too if applied at the app level
+
 
         // --- Apply Aspects ---
         console.log('Applying aspects for tagging and compliance...');
-        // Apply BasicTagger instances (default priority 0)
         cdk.Aspects.of(app).add(new BasicTagger('environment', environment));
         cdk.Aspects.of(app).add(new BasicTagger('project', 'doc-pipeline-workshop'));
         cdk.Aspects.of(app).add(new BasicTagger('prefix', prefix));
-        // Apply ComplianceAspect with higher priority (lower number)
-        cdk.Aspects.of(app).add(new ComplianceAspect(), { priority: 10 }); // Apply with priority
+        cdk.Aspects.of(app).add(new ComplianceAspect(), { priority: 10 }); // Apply Compliance Aspect with priority
         console.log('Tagging and Compliance aspects applied.');
-
-        // --- Apply Required Tag Directly ---
-        // cdk.Tags.of(coreStack.table).add('PITR-Enabled', 'true'); // <<< ENSURE THIS IS REMOVED
     ```
 
 
