@@ -99,12 +99,6 @@ Each lab contains:
 - Architectural diagrams
 - Exercise solutions
 
-## Getting Help
-
-If you encounter issues during the workshop:
-- Check the [Troubleshooting Guide](./resources/troubleshooting.md)
-- Refer to [Common Errors & Solutions](./resources/common-errors.md)
-- Ask questions through GitLab issues
 
 ## Additional Resources
 
