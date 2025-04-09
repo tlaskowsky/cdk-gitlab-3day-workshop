@@ -150,7 +150,7 @@ Let's write initial tests for the `CoreStack`. These will likely fail later and 
     }); // End describe block
     ```
 4.  **Run Initial Tests & Snapshot:**
-    * Run `npm test`. Some tests might pass, the snapshot test will fail.
+    * Run `npm test`. Some tests might pass, the snapshot test will pass if you don't already have a snapshot. The snapshot test will fail if the current snapshot does not match the existing snapshot.
     * Run `npm test -- -u` to create the initial snapshot based on the Lab 4 code state (where PITR is likely disabled).
     * Commit the new snapshot file (`test/__snapshots__/core-stack.test.ts.snap`).
 
