@@ -248,6 +248,20 @@ You should see your **"Document Processing Pipeline"** HTML page.
 
 > Note: CloudFront distributions can take **5–15 minutes** to fully deploy globally. If you see an error initially, wait and refresh.
 
+### Check OAC in effect
+
+Go to the S3 console and confirm `${prefix}-FrontendStack-websitebucket` is created.  Note the **Object URL**
+
+### Access Website
+
+Open a browser and visit:
+
+```text
+https://<ObjectURLe>
+```
+
+You should see your **"<Code>AccessDenied</Code>"** HTML page.
+
 ---
 
 ## Step 6: Clean Up Resources
@@ -262,5 +276,4 @@ cdk destroy
 
 ## Congratulations!
 
-You have successfully deployed a static website using **S3** and **CloudFront**, managed entirely through **AWS CDK**!  
-This completes the optional **frontend component** for the workshop.
+You have successfully deployed a static website using **S3** and **CloudFront**, protected by **OAC** protection, managed entirely through **AWS CDK**!  
