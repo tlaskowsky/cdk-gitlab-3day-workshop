@@ -49,4 +49,4 @@ In this lab, you will:
 
 ## Next Steps
 
-In [Lab 6](../lab-6/README.md), you'll refactor the compute layer to use containerized ECS Fargate tasks, add operational monitoring, and expose the system's status via a CloudFront static site.
+In [Lab 6](../lab-6a/README.md), you'll refactor the compute layer to use containerized ECS Fargate tasks, add operational monitoring, and expose the system's status via a CloudFront static site.
