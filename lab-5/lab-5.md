@@ -5,7 +5,7 @@ nav_order: 51
 has_children: true
 ---
 
-## Lab 5: Automated Tests + Monitoring + Aspects
+# Lab 5: Automated Tests + Monitoring + Aspects
 
 ## Goal
 
