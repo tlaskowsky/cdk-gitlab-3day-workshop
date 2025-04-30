@@ -195,7 +195,7 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
     > * Modify the `STUDENT_PREFIX` line to use a suitable unique identifier (e.g., `$GITLAB_USER_LOGIN` or `$STUDENT_ID` variable).
     > * Check if `jq` needs to be installed.
 
-5.  **Modify `deploy_dev` Job:** Find the existing `deploy_dev` job. Ensure its `stage:` key is `deploy-dev`. **Modify its `script:` block** to add the context flags (`-c prefix=... -c environment=dev`).
+5.  **Modify `deploy_to_dev` Job:** Find the existing `deploy_to_dev` job. Ensure its `stage:` key is `deploy-dev`. **Modify its `script:` block** to add the context flags (`-c prefix=... -c environment=dev`).
     ```yaml
     # Find the existing deploy-dev job and modify its stage and script block
 
