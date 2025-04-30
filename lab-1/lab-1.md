@@ -36,10 +36,10 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 2.  **Clone Locally:**
     * Navigate to your newly created project's main page in the GitLab UI.
     * Click the blue **"Code"** button (usually near the top right).
-    * Copy the URL provided under **"Clone with HTTPS"**. It will look something like `https://gitlab.com/your-group/your-project.git`.
+    * Copy the URL provided under **"Clone with HTTP"**. It will look something like `http://gitlab.com/your-group/your-project.git`.
     * In your **local terminal**, use the copied URL with the `git clone` command. Then navigate into the newly created project directory. Replace `PASTE_HTTPS_URL_HERE` with the URL you copied.
         ```bash
-        git clone PASTE_HTTPS_URL_HERE
+        git clone PASTE_HTTP_URL_HERE
         cd <your-project-name> # The directory name usually matches your project name
         ```
 3.  **Initialize CDK App Locally:** Run the `cdk init` command in your **local terminal** within the cloned project directory. This command requires Node.js and the CDK Toolkit to be installed locally.
@@ -464,7 +464,7 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 5.  **Test the EC2 Polling Logic:**
     * **Send Manual SQS Message:** Go to SQS Console -> Your queue -> Send and receive messages -> Enter `{"test": "Final test!", "source": "manual"}` -> Send message.
     * **Connect to EC2 Instance:** Go to EC2 Console -> Instances -> Select your *current* instance -> Connect -> **Session Manager** -> Connect.
-    * **Check Logs:** In the EC2 terminal session:
+    * **Check Logs:** In the EC2 terminal session (Note: you may need to use `sudo` is you get permission errors):
         ```bash
         tail -f /home/ec2-user/sqs_messages.log
         ```
