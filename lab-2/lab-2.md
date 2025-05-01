@@ -32,13 +32,13 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
 3.  **Check `lib/compute-stack.ts`:** Your compute stack should look like the version from the end of Lab 1. Key features: Performs `Vpc.fromLookup` inside constructor, uses heredoc to create `poll_sqs.sh` with embedded queue URL and quoted `echo`, forces instance replacement via logical ID.
     > **Note:** If your file doesn't match, please update it now using the content from the end of Lab 1 before proceeding.
 
-## Step 1: Understand the Cross-Account Strategy**
+## Step 1: Understand the Cross-Account Strategy
 
 * **Goal:** Deploy the same CDK code to a separate Prod AWS account for isolation and safety.
 * **Mechanism:** Your GitLab runner (using its existing Dev credentials/role) will temporarily assume the `CDKDeployRole` in the Prod account. It gets short-lived credentials specific to that role in the Prod account. It then uses *these temporary credentials* to run `cdk bootstrap` and `cdk deploy` targeting the Prod account/region.
 * **Security:** This relies on a trust relationship configured on the `CDKDeployRole` in Prod, explicitly allowing assumption by the role/user associated with your GitLab runner in the Dev/CI account.
 
-## Step 2: Modify `.gitlab-ci.yml` for Prod Deployment**
+## Step 2: Modify `.gitlab-ci.yml` for Prod Deployment
 
 1.  **Open `.gitlab-ci.yml`:** Open your verified starting file from Step 0.
 
