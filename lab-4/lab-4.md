@@ -110,7 +110,7 @@ Modify `bin/app.ts` to pass the `inputBucket` from `CoreStack` to `ComputeStack`
 
 To resolve the TypeScript compilation errors caused by embedding complex Bash scripts in template literals, we will move the script to an external file and update `compute-stack.ts` to read it.
 
-1.  **Create `scripts` Directory:** In the **root** of your project (alongside `bin` and `lib`), create a new directory named `scripts`.
+1.  If you have not already, then **Create `scripts` Directory:** In the **root** of your project (alongside `bin` and `lib`), create a new directory named `scripts`.
 2.  **Create Template File:** Inside the new `scripts` directory, create a file named `poll_sqs.sh.template`.
 3.  **Add Bash Script Content:** Paste the following Bash script into `scripts/poll_sqs.sh.template`. This script uses `%%PLACEHOLDERS%%` which will be replaced by CDK/sed later.
     ```bash
