@@ -33,7 +33,7 @@ Modify `lib/core-stack.ts` to configure the S3 bucket -> SQS trigger.
     import * as s3 from 'aws-cdk-lib/aws-s3';
     import * as sqs from 'aws-cdk-lib/aws-sqs';
     ```
-3.  **Add Event Notification:** Inside the `constructor`, after the `this.bucket` definition, and the `this.table`, add the following code block:
+3.  **Add Event Notification:** Inside the `constructor`, after the `this.bucket` definition and the `this.queue`, add the following code block:
     ```typescript
       // Inside CoreStack constructor, after this.bucket = new s3.Bucket(...)
       // And after the SQS queue definition
