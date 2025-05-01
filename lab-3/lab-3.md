@@ -297,57 +297,57 @@ Due to the complexity of the userdata script needed, we will move the polling lo
       }));
   ```
   * Replace UserData Logic: Replace the entire // --- EC2 UserData --- section down to (but not including) the // --- EC2 Instance Definition --- comment with the following code that reads the file and uses sed:.
-  
+
   ```typescript
-      // --- EC2 UserData (Read script from file, use sed) ---
-      const userData = ec2.UserData.forLinux();
+    // --- EC2 UserData (Read script from file, use sed) ---
+    const userData = ec2.UserData.forLinux();
 
-      // *** Read script template content from external file ***
-      const scriptTemplatePath = 'scripts/poll_sqs.sh.template'; // Use path relative to project root
-      const pollingScriptTemplate = fs.readFileSync(scriptTemplatePath, 'utf8');
+    // *** Read script template content from external file ***
+    const scriptTemplatePath = 'scripts/poll_sqs.sh.template'; // Use path relative to project root
+    const pollingScriptTemplate = fs.readFileSync(scriptTemplatePath, 'utf8');
 
-      // Add commands to UserData
-      userData.addCommands(
-          'set -ex', // Exit on error, print commands
-          'echo "UserData Update Trigger: $(date)" > /home/ec2-user/userdata_trigger.log',
-          // Install tools
-          'sudo yum update -y',
-          'sudo yum install -y unzip jq',
-          'echo "Installing AWS CLI v2..."',
-          'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"',
-          'unzip awscliv2.zip',
-          'sudo ./aws/install',
-          'rm -rf aws awscliv2.zip',
-          'echo "AWS CLI installed successfully."',
+    // Add commands to UserData
+    userData.addCommands(
+        'set -ex', // Exit on error, print commands
+        'echo "UserData Update Trigger: $(date)" > /home/ec2-user/userdata_trigger.log',
+        // Install tools
+        'sudo yum update -y',
+        'sudo yum install -y unzip jq',
+        'echo "Installing AWS CLI v2..."',
+        'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"',
+        'unzip awscliv2.zip',
+        'sudo ./aws/install',
+        'rm -rf aws awscliv2.zip',
+        'echo "AWS CLI installed successfully."',
 
-          // Write the script TEMPLATE using a heredoc
-          'echo "Creating polling script template..."',
-          // Write the content read from the file into the heredoc
-          `cat <<'EOF' > /home/ec2-user/poll_sqs.sh.template
+        // Write the script TEMPLATE using a heredoc
+        'echo "Creating polling script template..."',
+        // Write the content read from the file into the heredoc
+        `cat <<'EOF' > /home/ec2-user/poll_sqs.sh.template
   ${pollingScriptTemplate}
   EOF`,
 
-          // Use sed to replace placeholders with actual values from CDK tokens
-          'echo "Replacing placeholders in script..."',
-          `sed -e "s|%%QUEUE_URL%%|${props.processingQueue.queueUrl}|g" \\`,
-          `    -e "s|%%TABLE_NAME%%|${props.table.tableName}|g" \\`,
-          `    /home/ec2-user/poll_sqs.sh.template > /home/ec2-user/poll_sqs.sh`,
+        // Use sed to replace placeholders with actual values from CDK tokens
+        'echo "Replacing placeholders in script..."',
+        `sed -e "s|%%QUEUE_URL%%|${props.processingQueue.queueUrl}|g" \\`,
+        `    -e "s|%%TABLE_NAME%%|${props.table.tableName}|g" \\`,
+        `    /home/ec2-user/poll_sqs.sh.template > /home/ec2-user/poll_sqs.sh`,
 
-          // Set permissions and ownership
-          'chmod +x /home/ec2-user/poll_sqs.sh',
-          'chown ec2-user:ec2-user /home/ec2-user/poll_sqs.sh',
-          'touch /home/ec2-user/sqs_messages.log && chown ec2-user:ec2-user /home/ec2-user/sqs_messages.log',
-          'touch /home/ec2-user/poll_sqs.out && chown ec2-user:ec2-user /home/ec2-user/poll_sqs.out',
-          'touch /home/ec2-user/userdata_trigger.log && chown ec2-user:ec2-user /home/ec2-user/userdata_trigger.log',
-          'touch /home/ec2-user/comprehend_error.log && chown ec2-user:ec2-user /home/ec2-user/comprehend_error.log',
-          'touch /home/ec2-user/textract_error.log && chown ec2-user:ec2-user /home/ec2-user/textract_error.log',
-          'echo "Polling script created."',
+        // Set permissions and ownership
+        'chmod +x /home/ec2-user/poll_sqs.sh',
+        'chown ec2-user:ec2-user /home/ec2-user/poll_sqs.sh',
+        'touch /home/ec2-user/sqs_messages.log && chown ec2-user:ec2-user /home/ec2-user/sqs_messages.log',
+        'touch /home/ec2-user/poll_sqs.out && chown ec2-user:ec2-user /home/ec2-user/poll_sqs.out',
+        'touch /home/ec2-user/userdata_trigger.log && chown ec2-user:ec2-user /home/ec2-user/userdata_trigger.log',
+        'touch /home/ec2-user/comprehend_error.log && chown ec2-user:ec2-user /home/ec2-user/comprehend_error.log',
+        'touch /home/ec2-user/textract_error.log && chown ec2-user:ec2-user /home/ec2-user/textract_error.log',
+        'echo "Polling script created."',
 
-          // Run the script as ec2-user
-          'echo "Starting polling script in background..."',
-          'sudo -u ec2-user bash -c "nohup /home/ec2-user/poll_sqs.sh > /home/ec2-user/poll_sqs.out 2>&1 &"',
-          'echo "UserData script finished."'
-      );
+        // Run the script as ec2-user
+        'echo "Starting polling script in background..."',
+        'sudo -u ec2-user bash -c "nohup /home/ec2-user/poll_sqs.sh > /home/ec2-user/poll_sqs.out 2>&1 &"',
+        'echo "UserData script finished."'
+    );
   ```
 
 ## Step 6: Update App Entry Point
