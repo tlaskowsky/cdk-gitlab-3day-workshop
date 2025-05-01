@@ -186,91 +186,113 @@ Due to the complexity of the userdata script needed, we will move the polling lo
     ```
 2. **Create Script Template File:** Inside the scripts directory, create a file named poll_sqs.sh.template.
 3. **Add Bash Script Content:**  Paste the following Bash script (using %%PLACEHOLDERS%% and Lab 3 logic) into scripts/poll_sqs.sh.template:
-    ```bash
-        #!/bin/bash
-        echo "Polling SQS Queue: %%QUEUE_URL%% (Region determined automatically by AWS CLI)"
-        # Assign resolved values to shell variables
-        QUEUE_URL="%%QUEUE_URL%%"
-        TABLE_NAME="%%TABLE_NAME%%"
+  ```bash
+    #!/bin/bash
+    # SQS Polling Script Template - Cleaned Version
+    # Placeholders %%QUEUE_URL%% and %%TABLE_NAME%% will be replaced by UserData.
 
-        while true; do
-          echo "Receiving messages..."
-          # Receive message
-          REC_MSG=$(aws sqs receive-message --queue-url "$QUEUE_URL" --attribute-names All --message-attribute-names All --wait-time-seconds 10 --max-number-of-messages 1)
-          MSG_BODY=$(echo "$REC_MSG" | jq -r '.Messages[0].Body // empty')
-          MSG_ID=$(echo "$REC_MSG" | jq -r '.Messages[0].MessageId // empty')
+    # Log startup information
+    echo "Polling SQS Queue: %%QUEUE_URL%% (Region determined automatically by AWS CLI)"
 
-          # Check if a message was received
-          if [ -n "$MSG_BODY" ] && [ "$MSG_BODY" != "null" ]; then
-            echo "Received message ID: $MSG_ID"
-            echo "Body: $MSG_BODY"
+    # Assign resolved values to shell variables after UserData replaces placeholders
+    QUEUE_URL="%%QUEUE_URL%%"
+    TABLE_NAME="%%TABLE_NAME%%"
 
-          # --- Call Comprehend (Lab 3) ---
-          # Use MSG_BODY which holds the text from SQS
-          # Truncate the actual message body to comply with Comprehend limits (approx 5000 bytes)
-            TEXT_TO_ANALYZE_TRUNCATED=$(printf '%s' "$MSG_BODY" | head -c 4999)
-            echo "Running sentiment analysis on truncated text..."
+    # --- Main Loop ---
+    while true; do
+      echo "Receiving messages..."
 
-            # Check if the truncated text is non-empty before calling Comprehend
-            if [ -n "$TEXT_TO_ANALYZE_TRUNCATED" ]; then
-                # Pass the truncated message body to the --text parameter
-                SENTIMENT_RESULT=$(aws comprehend detect-sentiment --language-code en --text "$TEXT_TO_ANALYZE_TRUNCATED" 2> /home/ec2-user/comprehend_error.log)
-                SENTIMENT=$(echo "$SENTIMENT_RESULT" | jq -r '.Sentiment // "ERROR"')
-                SENTIMENT_SCORE_POSITIVE=$(echo "$SENTIMENT_RESULT" | jq -r '.SentimentScore.Positive // "0"')
+      # Receive message (using default region detection)
+      REC_MSG=$(aws sqs receive-message --queue-url "$QUEUE_URL" --attribute-names All --message-attribute-names All --wait-time-seconds 10 --max-number-of-messages 1)
+      MSG_BODY=$(echo "$REC_MSG" | jq -r '.Messages[0].Body // empty')
+      MSG_ID=$(echo "$REC_MSG" | jq -r '.Messages[0].MessageId // empty')
+      # NOTE: ReceiptHandle is not extracted in this version, needed for deletion later.
 
-                # Check if SENTIMENT is ERROR which indicates a problem during the API call
-                if [ "$SENTIMENT" == "ERROR" ]; then
-                    echo "ERROR calling Comprehend. Check /home/ec2-user/comprehend_error.log"
-                    # Decide how to handle: maybe set sentiment to UNKNOWN, skip DDB write etc.
-                    # For now, let's set SENTIMENT so DDB write doesn't fail completely on missing value
-                    SENTIMENT="COMPREHEND_ERROR"
-                    SENTIMENT_SCORE_POSITIVE="0" # Default score on error
-                else
-                    echo "Sentiment: $SENTIMENT (Positive Score: $SENTIMENT_SCORE_POSITIVE)"
-                fi
-            else
-                # Handle case where MSG_BODY was present but maybe only whitespace or became empty after potential processing
-                echo "Skipping Comprehend call because text body is effectively empty after truncation."
-                SENTIMENT="EMPTY_INPUT"
+      # Check if a message was actually received
+      if [ -n "$MSG_BODY" ] && [ "$MSG_BODY" != "null" ] && [ -n "$MSG_ID" ]; then
+        echo "Received message ID: $MSG_ID"
+        # echo "Body: $MSG_BODY" # Uncomment for debugging, but can be very verbose
+
+        # --- Call Comprehend (Lab 3) ---
+        # FIX: Use MSG_BODY which holds the text from SQS
+        TEXT_TO_ANALYZE_TRUNCATED=$(printf '%s' "$MSG_BODY" | head -c 4999) # Truncate to comply with Comprehend limits
+        echo "Running sentiment analysis on truncated text..."
+
+        # Check if the truncated text is non-empty before calling Comprehend
+        if [ -n "$TEXT_TO_ANALYZE_TRUNCATED" ]; then
+            # FIX: Pass the truncated message body to the --text parameter
+            # Using default region detection
+            SENTIMENT_RESULT=$(aws comprehend detect-sentiment --language-code en --text "$TEXT_TO_ANALYZE_TRUNCATED" 2> /home/ec2-user/comprehend_error.log)
+            SENTIMENT=$(echo "$SENTIMENT_RESULT" | jq -r '.Sentiment // "ERROR"')
+            SENTIMENT_SCORE_POSITIVE=$(echo "$SENTIMENT_RESULT" | jq -r '.SentimentScore.Positive // "0"')
+
+            # Check if SENTIMENT is ERROR which indicates a problem during the API call
+            if [ "$SENTIMENT" == "ERROR" ]; then
+                echo "ERROR calling Comprehend. Check /home/ec2-user/comprehend_error.log"
+                # Set default values on error
+                SENTIMENT="COMPREHEND_ERROR"
                 SENTIMENT_SCORE_POSITIVE="0"
-            fi
-
-            # --- Write to DynamoDB (Lab 3) ---
-            # This section will always have a value for SENTIMENT
-            JOB_ID="job-${MSG_ID}"
-            TIMESTAMP=$(date --iso-8601=seconds)
-            echo "Writing results to DynamoDB table: $TABLE_NAME"
-            # Ensure scorePos is treated as a string for jq argument, DDB expects {"N": "number_string"}
-            SCORE_POS_STR=$(printf "%s" "$SENTIMENT_SCORE_POSITIVE")
-            ITEM_JSON=$(jq -n --arg jobId "$JOB_ID" --arg ts "$TIMESTAMP" --arg status "PROCESSED_LAB3" --arg sentiment "$SENTIMENT" --arg scorePos "$SCORE_POS_STR" --arg msgBody "$MSG_BODY" '{
-              "jobId": {"S": $jobId},
-              "timestamp": {"S": $ts},
-              "status": {"S": $status},
-              "sentiment": {"S": $sentiment},
-              "sentimentScorePositive": {"N": $scorePos},
-              "messageBody": {"S": $msgBody}
-            }')
-            # Add error handling for DDB put-item
-            aws dynamodb put-item --table-name "$TABLE_NAME" --item "$ITEM_JSON"
-            if [ $? -eq 0 ]; then
-                echo "Results written to DynamoDB."
             else
-                echo "ERROR writing to DynamoDB."
-                # Log the failed item?
-                echo "Failed DDB Item: $ITEM_JSON" >> /home/ec2-user/dynamodb_error.log
+                echo "Sentiment: $SENTIMENT (Positive Score: $SENTIMENT_SCORE_POSITIVE)"
             fi
+        else
+            # Handle case where MSG_BODY was present but maybe only whitespace or became empty after potential processing
+            echo "Skipping Comprehend call because text body is effectively empty after truncation."
+            SENTIMENT="EMPTY_INPUT"
+            SENTIMENT_SCORE_POSITIVE="0"
+        fi
 
-            # Append simple confirmation to local log
-            echo "Processed message ID: $MSG_ID at $TIMESTAMP, Sentiment: $SENTIMENT" >> /home/ec2-user/sqs_messages.log
+        # --- Write to DynamoDB (Lab 3) ---
+        JOB_ID="job-${MSG_ID}"
+        TIMESTAMP=$(date --iso-8601=seconds)
+        echo "Writing results to DynamoDB table: $TABLE_NAME"
+        SCORE_POS_STR=$(printf "%s" "$SENTIMENT_SCORE_POSITIVE") # Ensure score is a string for jq/DDB number type
 
-            # NOTE: No SQS message delete in Lab 3
+        # Construct the DynamoDB item using jq
+        ITEM_JSON=$(jq -n \
+          --arg jobId "$JOB_ID" \
+          --arg ts "$TIMESTAMP" \
+          --arg status "PROCESSED_LAB3" \
+          --arg sentiment "$SENTIMENT" \
+          --arg scorePos "$SCORE_POS_STR" \
+          --arg msgBody "$MSG_BODY" \
+          '{
+            "jobId": {"S": $jobId},
+            "timestamp": {"S": $ts},
+            "status": {"S": $status},
+            "sentiment": {"S": $sentiment},
+            "sentimentScorePositive": {"N": $scorePos},
+            "messageBody": {"S": $msgBody}
+          }')
 
-          else
-            echo "No message received."
-          fi
-          sleep 5
-        done
-    ```
+        # Attempt to write the item to DynamoDB (using default region detection)
+        aws dynamodb put-item --table-name "$TABLE_NAME" --item "$ITEM_JSON"
+        if [ $? -eq 0 ]; then
+            echo "Results written to DynamoDB."
+        else
+            echo "ERROR writing to DynamoDB."
+            # Log the failed item?
+            echo "Failed DDB Item: $ITEM_JSON" >> /home/ec2-user/dynamodb_error.log
+        fi
+
+        # Append simple confirmation to local log
+        echo "Processed message ID: $MSG_ID at $TIMESTAMP, Sentiment: $SENTIMENT" >> /home/ec2-user/sqs_messages.log
+
+        # NOTE: No SQS message delete in Lab 3 / This Version
+
+      else
+        # No message received or failed to extract details
+        echo "No message received."
+      fi
+
+      # Original sleep from this version
+      sleep 5
+
+    done # End of while true loop
+
+    echo "Polling script exiting unexpectedly." # Should not be reached
+    exit 1
+  ```
 
 4. **Modify lib/compute-stack.ts:** Open `lib/compute-stack.ts`.
   * Add/Update Imports: Ensure fs, path, dynamodb, and iam are imported. Remove s3.
@@ -313,12 +335,15 @@ Due to the complexity of the userdata script needed, we will move the polling lo
         // Install tools
         'sudo yum update -y',
         'sudo yum install -y unzip jq',
+        
+        // install aws cli v2
         'echo "Installing AWS CLI v2..."',
         'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"',
         'unzip awscliv2.zip',
         'sudo ./aws/install',
         'rm -rf aws awscliv2.zip',
         'echo "AWS CLI installed successfully."',
+        '/usr/local/bin/aws --version', // Verify installation
 
         // Write the script TEMPLATE using a heredoc
         'echo "Creating polling script template..."',
@@ -340,11 +365,15 @@ Due to the complexity of the userdata script needed, we will move the polling lo
         'touch /home/ec2-user/poll_sqs.out && chown ec2-user:ec2-user /home/ec2-user/poll_sqs.out',
         'touch /home/ec2-user/userdata_trigger.log && chown ec2-user:ec2-user /home/ec2-user/userdata_trigger.log',
         'touch /home/ec2-user/comprehend_error.log && chown ec2-user:ec2-user /home/ec2-user/comprehend_error.log',
-        'touch /home/ec2-user/textract_error.log && chown ec2-user:ec2-user /home/ec2-user/textract_error.log',
+        'touch /home/ec2-user/dynamodb_error.log && chown ec2-user:ec2-user /home/ec2-user/dynamodb_error.log',
+        'touch /home/ec2-user/sqs_receive_error.log && chown ec2-user:ec2-user /home/ec2-user/sqs_receive_error.log',
+        'touch /home/ec2-user/sqs_processing_error.log && chown ec2-user:ec2-user /home/ec2-user/sqs_processing_error.log',
+
         'echo "Polling script created."',
 
         // Run the script as ec2-user
         'echo "Starting polling script in background..."',
+        //Use nohup and run in background as ec2-user
         'sudo -u ec2-user bash -c "nohup /home/ec2-user/poll_sqs.sh > /home/ec2-user/poll_sqs.out 2>&1 &"',
         'echo "UserData script finished."'
     );
