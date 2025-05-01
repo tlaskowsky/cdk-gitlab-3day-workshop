@@ -297,6 +297,7 @@ Due to the complexity of the userdata script needed, we will move the polling lo
       }));
   ```
   * Replace UserData Logic: Replace the entire // --- EC2 UserData --- section down to (but not including) the // --- EC2 Instance Definition --- comment with the following code that reads the file and uses sed:.
+  
   ```typescript
       // --- EC2 UserData (Read script from file, use sed) ---
       const userData = ec2.UserData.forLinux();
