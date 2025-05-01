@@ -180,6 +180,7 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
     ```
 
 ## Step 5: Update Compute Stack & UserData
+Due to the complexity of the userdata script needed, we will move the polling logic to a separate Bash script.
 
 1. **Create scripts Directory:** in the root of your project:
     ```bash
@@ -188,62 +189,89 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
 2. **Create Script Template File:** Inside the scripts directory, create a file named poll_sqs.sh.template.
 3. **Add Bash Script Content:**  Paste the following Bash script (using %%PLACEHOLDERS%% and Lab 3 logic) into scripts/poll_sqs.sh.template:
     ```bash
-      #!/bin/bash
-      echo "Polling SQS Queue: %%QUEUE_URL%% (Region determined automatically by AWS CLI)"
-      # Assign resolved values to shell variables
-      QUEUE_URL="%%QUEUE_URL%%"
-      TABLE_NAME="%%TABLE_NAME%%"
+        #!/bin/bash
+        echo "Polling SQS Queue: %%QUEUE_URL%% (Region determined automatically by AWS CLI)"
+        # Assign resolved values to shell variables
+        QUEUE_URL="%%QUEUE_URL%%"
+        TABLE_NAME="%%TABLE_NAME%%"
 
-      while true; do
-        echo "Receiving messages..."
-        # Receive message
-        REC_MSG=$(aws sqs receive-message --queue-url "$QUEUE_URL" --attribute-names All --message-attribute-names All --wait-time-seconds 10 --max-number-of-messages 1)
-        MSG_BODY=$(echo "$REC_MSG" | jq -r '.Messages[0].Body // empty')
-        MSG_ID=$(echo "$REC_MSG" | jq -r '.Messages[0].MessageId // empty')
+        while true; do
+          echo "Receiving messages..."
+          # Receive message
+          REC_MSG=$(aws sqs receive-message --queue-url "$QUEUE_URL" --attribute-names All --message-attribute-names All --wait-time-seconds 10 --max-number-of-messages 1)
+          MSG_BODY=$(echo "$REC_MSG" | jq -r '.Messages[0].Body // empty')
+          MSG_ID=$(echo "$REC_MSG" | jq -r '.Messages[0].MessageId // empty')
 
-        # Check if a message was received
-        if [ -n "$MSG_BODY" ] && [ "$MSG_BODY" != "null" ]; then
-          echo "Received message ID: $MSG_ID"
-          echo "Body: $MSG_BODY"
+          # Check if a message was received
+          if [ -n "$MSG_BODY" ] && [ "$MSG_BODY" != "null" ]; then
+            echo "Received message ID: $MSG_ID"
+            echo "Body: $MSG_BODY"
 
           # --- Call Comprehend (Lab 3) ---
-          TEXT_TO_ANALYZE_TRUNCATED=$(printf '%s' "$TEXT_TO_ANALYZE" | head -c 4999)
-          echo "Running sentiment analysis..."
-          SENTIMENT_RESULT=$(aws comprehend detect-sentiment --language-code en --text "$TEXT_TO_ANALYZE" 2> /home/ec2-user/comprehend_error.log)
-          SENTIMENT=$(echo "$SENTIMENT_RESULT" | jq -r '.Sentiment // "ERROR"')
-          SENTIMENT_SCORE_POSITIVE=$(echo "$SENTIMENT_RESULT" | jq -r '.SentimentScore.Positive // "0"')
-          echo "Sentiment: $SENTIMENT (Positive Score: $SENTIMENT_SCORE_POSITIVE)"
+          # Use MSG_BODY which holds the text from SQS
+          # Truncate the actual message body to comply with Comprehend limits (approx 5000 bytes)
+            TEXT_TO_ANALYZE_TRUNCATED=$(printf '%s' "$MSG_BODY" | head -c 4999)
+            echo "Running sentiment analysis on truncated text..."
 
-          # --- Write to DynamoDB (Lab 3) ---
-          JOB_ID="job-${MSG_ID}"
-          TIMESTAMP=$(date --iso-8601=seconds)
-          echo "Writing results to DynamoDB table: $TABLE_NAME"
-          ITEM_JSON=$(jq -n --arg jobId "$JOB_ID" --arg ts "$TIMESTAMP" --arg status "PROCESSED_LAB3" --arg sentiment "$SENTIMENT" --arg scorePos "$SENTIMENT_SCORE_POSITIVE" --arg msgBody "$MSG_BODY" '{
-            "jobId": {"S": $jobId},
-            "timestamp": {"S": $ts},
-            "status": {"S": $status},
-            "sentiment": {"S": $sentiment},
-            "sentimentScorePositive": {"N": $scorePos},
-            "messageBody": {"S": $msgBody}
-          }')
-          aws dynamodb put-item --table-name "$TABLE_NAME" --item "$ITEM_JSON"
-          if [ $? -eq 0 ]; then
-              echo "Results written to DynamoDB."
+            # Check if the truncated text is non-empty before calling Comprehend
+            if [ -n "$TEXT_TO_ANALYZE_TRUNCATED" ]; then
+                # Pass the truncated message body to the --text parameter
+                SENTIMENT_RESULT=$(aws comprehend detect-sentiment --language-code en --text "$TEXT_TO_ANALYZE_TRUNCATED" 2> /home/ec2-user/comprehend_error.log)
+                SENTIMENT=$(echo "$SENTIMENT_RESULT" | jq -r '.Sentiment // "ERROR"')
+                SENTIMENT_SCORE_POSITIVE=$(echo "$SENTIMENT_RESULT" | jq -r '.SentimentScore.Positive // "0"')
+
+                # Check if SENTIMENT is ERROR which indicates a problem during the API call
+                if [ "$SENTIMENT" == "ERROR" ]; then
+                    echo "ERROR calling Comprehend. Check /home/ec2-user/comprehend_error.log"
+                    # Decide how to handle: maybe set sentiment to UNKNOWN, skip DDB write etc.
+                    # For now, let's set SENTIMENT so DDB write doesn't fail completely on missing value
+                    SENTIMENT="COMPREHEND_ERROR"
+                    SENTIMENT_SCORE_POSITIVE="0" # Default score on error
+                else
+                    echo "Sentiment: $SENTIMENT (Positive Score: $SENTIMENT_SCORE_POSITIVE)"
+                fi
+            else
+                # Handle case where MSG_BODY was present but maybe only whitespace or became empty after potential processing
+                echo "Skipping Comprehend call because text body is effectively empty after truncation."
+                SENTIMENT="EMPTY_INPUT"
+                SENTIMENT_SCORE_POSITIVE="0"
+            fi
+
+            # --- Write to DynamoDB (Lab 3) ---
+            # This section will always have a value for SENTIMENT
+            JOB_ID="job-${MSG_ID}"
+            TIMESTAMP=$(date --iso-8601=seconds)
+            echo "Writing results to DynamoDB table: $TABLE_NAME"
+            # Ensure scorePos is treated as a string for jq argument, DDB expects {"N": "number_string"}
+            SCORE_POS_STR=$(printf "%s" "$SENTIMENT_SCORE_POSITIVE")
+            ITEM_JSON=$(jq -n --arg jobId "$JOB_ID" --arg ts "$TIMESTAMP" --arg status "PROCESSED_LAB3" --arg sentiment "$SENTIMENT" --arg scorePos "$SCORE_POS_STR" --arg msgBody "$MSG_BODY" '{
+              "jobId": {"S": $jobId},
+              "timestamp": {"S": $ts},
+              "status": {"S": $status},
+              "sentiment": {"S": $sentiment},
+              "sentimentScorePositive": {"N": $scorePos},
+              "messageBody": {"S": $msgBody}
+            }')
+            # Add error handling for DDB put-item
+            aws dynamodb put-item --table-name "$TABLE_NAME" --item "$ITEM_JSON"
+            if [ $? -eq 0 ]; then
+                echo "Results written to DynamoDB."
+            else
+                echo "ERROR writing to DynamoDB."
+                # Log the failed item?
+                echo "Failed DDB Item: $ITEM_JSON" >> /home/ec2-user/dynamodb_error.log
+            fi
+
+            # Append simple confirmation to local log
+            echo "Processed message ID: $MSG_ID at $TIMESTAMP, Sentiment: $SENTIMENT" >> /home/ec2-user/sqs_messages.log
+
+            # NOTE: No SQS message delete in Lab 3
+
           else
-              echo "ERROR writing to DynamoDB."
+            echo "No message received."
           fi
-
-          # Append simple confirmation to local log
-          echo "Processed message ID: $MSG_ID at $TIMESTAMP" >> /home/ec2-user/sqs_messages.log
-
-          # NOTE: No SQS message delete in Lab 3
-
-        else
-          echo "No message received."
-        fi
-        sleep 5
-      done
-
+          sleep 5
+        done
     ```
 
 4. **Modify lib/compute-stack.ts:** Open `lib/compute-stack.ts`.
@@ -252,8 +280,7 @@ Update `CoreStack` to use the `NodejsFunction` construct to deploy the handler f
     import * as fs from 'fs';
     import * as path from 'path';
     import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
-    import * as iam from 'aws-cdk-lib/aws-iam';
-    // Keep: cdk, Construct, ec2, sqs, s3
+    // Keep: cdk, Construct, ec2, sqs, and iam
   ```
   * Update Props Interface: Ensure only processingQueue and table are present.
   ```typescript
