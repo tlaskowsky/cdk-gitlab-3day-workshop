@@ -379,7 +379,7 @@ Due to the complexity of the userdata script needed, we will move the polling lo
     ```
 3.  **Monitor Dev Pipeline:** Watch the pipeline execute. Check the `build_cdk` job log for `esbuild` output. Ensure all stages pass.
 4.  **Check CloudFormation & DDB Seed Data:** Verify stack updates and check for the seed item in DynamoDB.
-5.  **Test End-to-End Flow:** Send a test SQS message. Check the DynamoDB table again - a new item should appear with `status: PROCESSED` and Comprehend results. Check EC2 logs if needed.
+5.  **Test End-to-End Flow:** Send a test SQS message (e.g. "This was a fantastic experience, highly recommended!"). Check the DynamoDB table again - a new item should appear with `status: PROCESSED` and Comprehend results. Check EC2 logs if needed.
 
 **Step 8: Clean Up Resources**
 
