@@ -236,6 +236,7 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
     const app = new cdk.App();
 
     // --- Determine Target Account and Region ---
+    // Note: CDK_DEFAULT_ACCOUNT and CDK_DEFAULT_REGION is automatically set by the AWS CDK in your GitLab CI/CD pipeline used at synth/deploy time.
     const targetAccount = app.node.tryGetContext('account') ||
                           process.env.CDK_DEFAULT_ACCOUNT ||
                           process.env.AWS_ACCOUNT_ID;
