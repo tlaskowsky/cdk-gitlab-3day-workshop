@@ -32,6 +32,8 @@ Before making changes for Lab 2, let's ensure your key files match the final wor
 3.  **Check `lib/compute-stack.ts`:** Your compute stack should look like the version from the end of Lab 1. Key features: Performs `Vpc.fromLookup` inside constructor, uses heredoc to create `poll_sqs.sh` with embedded queue URL and quoted `echo`, forces instance replacement via logical ID.
     > **Note:** If your file doesn't match, please update it now using the content from the end of Lab 1 before proceeding.
 
+4. **Check `lib/core-stack.ts` and `lib/tagging-aspects.ts`:** should look like the version from the end of Lab 1.
+
 ## Step 1: Understand the Cross-Account Strategy
 
 * **Goal:** Deploy the same CDK code to a separate Prod AWS account for isolation and safety.
