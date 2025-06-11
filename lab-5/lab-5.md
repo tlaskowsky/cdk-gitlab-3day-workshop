@@ -15,7 +15,7 @@ Add Jest unit/snapshot tests, implement a CDK Aspect for DynamoDB PITR complianc
 
 * Completion of Lab 4. Your project deploys successfully to Dev with prefixing and the full S3->SQS->EC2->Textract->Comprehend->DDB pipeline working. Code should match final state from Lab 4 (artifacts `lab4_bin_app_final`, `lab4_script_template_final`, `lab4_compute_stack_final`, `lab4_core_stack_final`).
 * Local environment configured.
-* *(Instructor Info)* Assume an SCP is active in the AWS account denying `dynamodb:CreateTable`/`UpdateTable` unless the resource request includes the tag `PITR-Enabled: true`.
+* *(Compliance Scenario)* Assume an SCP is active in the AWS account denying `dynamodb:CreateTable`/`UpdateTable` unless the resource request includes the tag `PITR-Enabled: true`.
 
 ---
 

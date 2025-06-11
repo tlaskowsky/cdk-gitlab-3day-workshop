@@ -32,7 +32,7 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
 
 ## Step 1: Initialize CDK Project
 
-1.  **Create Blank Project:** In your GitLab group, create a new **blank project** (e.g., `doc-pipeline-lab`). Initialize it **with without a README**. Do **not** add templates like `.gitignore` or `LICENSE` yet, as `cdk init` will provide some.
+1.  **Create Blank Project:** In your GitLab group, create a new **blank project** (e.g., `doc-pipeline-lab`). Initialize it **without a README**. Do **not** add templates like `.gitignore` or `LICENSE` yet, as `cdk init` will provide some.
 2.  **Clone Locally:**
     * Navigate to your newly created project's main page in the GitLab UI.
     * Click the blue **"Code"** button (usually near the top right).
@@ -466,7 +466,7 @@ Initialize your CDK project, define stacks for core resources (S3, SQS) and comp
     * **Connect to EC2 Instance:** Go to EC2 Console -> Instances -> Select your *current* instance -> Connect -> **Session Manager** -> Connect.
     * **Check Logs:** In the EC2 terminal session (Note: you may need to use `sudo` is you get permission errors):
         ```bash
-        tail -f /home/ec2-user/sqs_messages.log
+        sudo tail -f /home/ec2-user/sqs_messages.log
         ```
     * **Observe Output:** You should see your test message logged within ~20 seconds.
 
