@@ -161,7 +161,7 @@ Let's write initial tests for the `CoreStack`. These will likely fail later and 
 Create a CDK Aspect to **validate** DynamoDB PITR is enabled and apply the `PITR-Enabled: true` tag required by the SCP.
 
 1.  **Create `lib/compliance-aspect.ts`:** Create this new file in the `lib` directory.
-2.  **Add Aspect Code:** Paste the following **corrected code** into the file. This version checks the Cfn property existence and uses the Cfn resource's tag manager.
+2.  **Add Aspect Code:** Paste the following code into the file. This version checks the Cfn property (L1 construct) existence and uses the Cfn resource's tag manager.
 
     ```typescript
         // lib/compliance-aspect.ts (Corrected PITR Check - Existence Check v2)
@@ -176,9 +176,7 @@ Create a CDK Aspect to **validate** DynamoDB PITR is enabled and apply the `PITR
               // Access the underlying CloudFormation resource (L1 construct)
               const cfnTable = node.node.defaultChild as dynamodb.CfnTable;
 
-              // *** CORRECTED CHECK: Check for the existence of the specification property ***
-              // If 'pointInTimeRecovery: true' was set on the L2 Table construct,
-              // CDK should synthesize the 'pointInTimeRecoverySpecification' property.
+              // *** Check for the existence of the specification property ***
               if (cfnTable.pointInTimeRecoverySpecification) {
                 // If the specification property exists, assume PITR is enabled and add the tag.
                 cfnTable.tags.setTag('PITR-Enabled', 'true'); // Use CfnTable's tag manager
