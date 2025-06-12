@@ -419,11 +419,14 @@ Verify the tests pass and the Aspect/Tagging works correctly.
     * Update the snapshot.
     * All tests should now **pass**. Run `npm test` again without `-u` to confirm.
 
-
 1.  **Run Synth:** Synthesize the template locally, providing necessary context.
    ```bash
+        # Set and export environment variables
+        export DEV_ACCOUNT_ID=123456789012
+        export DEV_REGION=us-east-1
+
         # Replace with your actual Dev context values
-        npx cdk synth -c prefix=stuXX-dev -c environment=dev -c account=DEV_ACCOUNT_ID -c region=DEV_REGION
+        npx cdk synth -c prefix=stuXX-dev -c environment=dev -c account=$DEV_ACCOUNT_ID -c region=$DEV_REGION
     ```
     * Verify no `Compliance Error` appears.
     * Check the synthesized template (`cdk.out/...CoreStack.template.json`) for the PITR setting and **all** expected tags on the DynamoDB table.
