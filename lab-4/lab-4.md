@@ -273,7 +273,7 @@ To resolve the TypeScript compilation errors caused by embedding complex Bash sc
             'echo "UserData script finished."'
         );
       ```
-      > **Note:** Ensure the `EC2 Instance Definition` block *after* this uses `userData: userData,` correctly.
+      > **Note:** Ensure the `EC2 Instance Definition` block is *after* this `userData`.
 
 ---
 
