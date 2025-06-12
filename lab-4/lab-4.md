@@ -249,8 +249,9 @@ To resolve the TypeScript compilation errors caused by embedding complex Bash sc
             // Write the script TEMPLATE using a heredoc
             'echo "Creating polling script template..."',
             // Write the content read from the file into the heredoc
-            `cat <<'EOF' > /home/ec2-user/poll_sqs.sh.template ${pollingScriptTemplate}EOF`, // Use the pollingScriptTemplate variable read from file
-
+            `cat <<'EOF' > /home/ec2-user/poll_sqs.sh.template 
+${pollingScriptTemplate}
+EOF`, // Use the pollingScriptTemplate variable read from file
             // Use sed to replace placeholders with actual values from CDK tokens
             'echo "Replacing placeholders in script..."',
             `sed -e "s|%%QUEUE_URL%%|${props.processingQueue.queueUrl}|g" \\`,
