@@ -290,6 +290,7 @@ Deploy the `CoreStack` changes to create the ECR repository in AWS.
 ## Step 4: Build and Push Docker Image (Manual Step)
 
 Build the container image locally and push it to the ECR repository you just created.
+Note: DO NOT use `sudo` for these commands. Be sure to run `sudo usermod -aG docker $USER` and verify that you are in the `docker` group by entering `groups`.  If you do not see the `docker` in your gorup, then run `newgrp docker`.
 
 1.  **Authenticate Docker to ECR:** Run in your local terminal (replace placeholders):
     ```bash
@@ -308,7 +309,7 @@ Build the container image locally and push it to the ECR repository you just cre
     ```bash
     docker push <YOUR_ECR_REPO_URI>:latest
     ```
-    Verify the push completes successfully.
+    Verify the push completes successfully by checking the ECR Repository.
 
 ---
 
@@ -401,6 +402,7 @@ Modify `lib/compute-stack.ts` to remove the EC2 instance and replace it with the
 ## Step 6: Deploy and Verify
 
 Deploy the Fargate compute stack and test the full flow.
+Note: Remember to update the snapshot if you are doing snapshot testing
 
 1.  **Deploy `ComputeStack`:** Commit and push changes to `lib/compute-stack.ts` and `bin/app.ts` (and `processor-app/Dockerfile`, `processor-app/package.json` if they changed). Run the pipeline again.
     ```bash
