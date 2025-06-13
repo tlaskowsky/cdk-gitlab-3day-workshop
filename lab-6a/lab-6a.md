@@ -369,7 +369,7 @@ Modify `lib/compute-stack.ts` to remove the EC2 instance and replace it with the
           QUEUE_URL: props.processingQueue.queueUrl
         },
         maxScalingCapacity: 2,
-        minScalingCapacity: 0,
+        minScalingCapacity: 1,
         // visibilityTimeout: cdk.Duration.minutes(5), // Adjust if needed
         logDriver: ecs.LogDrivers.awsLogs({ streamPrefix: 'doc-processor', logGroup: logGroup }),
       });
