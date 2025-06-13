@@ -51,7 +51,7 @@ Create the Node.js application structure, code, and the Dockerfile.
     #   "scripts": { ... }, ...
     # }
     npm install @aws-sdk/client-sqs @aws-sdk/client-s3 @aws-sdk/client-textract @aws-sdk/client-comprehend @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb
-    cd ..
+
     ```
 3.  **Create Handler File (`index.js`):** Create the file `processor-app/index.js` and paste the following **complete Node.js application code** into it:
     ```javascript
@@ -272,7 +272,10 @@ Modify `lib/core-stack.ts` to define the ECR repository.
 ## Step 3: Deploy CoreStack & Get ECR URI
 
 Deploy the `CoreStack` changes to create the ECR repository in AWS.
-
+0.  **Snapshot:** If you are using the snapshot test, update the snapshot and push to repo in Step 1
+    ```bash
+    npm test -- -u
+    ```
 1.  **Commit `CoreStack` Changes:** Save, commit, and push changes to `lib/core-stack.ts`.
     ```bash
     git add lib/core-stack.ts
