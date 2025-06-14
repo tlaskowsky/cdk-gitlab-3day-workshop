@@ -42,6 +42,7 @@ Build a document processing pipeline using AWS CDK and TypeScript. The pipeline 
 
 Each lab will build incrementally on previous work, with each lab taking approximately 2-3 hours to complete.
 
+
 ### Day 1: Foundation & CI/CD Basics
 
 - [Lab 1: Foundation + GitLab CI/CD Bootstrapping + VPC Import](./lab-1/README.md)
@@ -104,7 +105,7 @@ Each lab contains:
 
 - [AWS CDK TypeScript Reference](https://docs.aws.amazon.com/cdk/api/latest/typescript/api/index.html)
 - [GitLab CI/CD Documentation](https://docs.gitlab.com/ee/ci/)
-- [Workshop Code Repository](https://github.com/tlaskowsky/cdk-gitlab-3day-workshop)
+- [Workshop Code Repository](https://github.com/tlaskowsky/cdk-gitlab-3day-workshop-code)
 - [Cheat Sheets](./resources/cheatsheets/index.md)
 
 ---
