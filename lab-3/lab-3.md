@@ -349,8 +349,8 @@ Due to the complexity of the userdata script needed, we will move the polling lo
         'echo "Creating polling script template..."',
         // Write the content read from the file into the heredoc
         `cat <<'EOF' > /home/ec2-user/poll_sqs.sh.template
-  ${pollingScriptTemplate}
-  EOF`,
+${pollingScriptTemplate}
+EOF`,
 
         // Use sed to replace placeholders with actual values from CDK tokens
         'echo "Replacing placeholders in script..."',
